@@ -23,9 +23,31 @@ public class LedgerAccountTests
 
         Assert.NotEqual(Guid.Empty, account.Id);
         Assert.Equal(ownerId, account.OwnerUserId);
+        Assert.Equal(LedgerAccountType.UserWallet, account.Type);
         Assert.Equal(Currency.Brl, account.Currency);
         Assert.Equal("My Wallet", account.DisplayName);
         Assert.InRange(account.CreatedAtUtc, before, after);
+    }
+
+    [Theory]
+    [InlineData(null)]
+    [InlineData("")]
+    [InlineData("   ")]
+    public void OpenSystemFundingAccount_ThrowsArgumentException_WhenDisplayNameIsBlank(string? displayName)
+    {
+        Assert.Throws<ArgumentException>(() => LedgerAccount.OpenSystemFundingAccount(Currency.Usd, displayName!));
+    }
+
+    [Fact]
+    public void OpenSystemFundingAccount_SetsExpectedFields_OnSuccess()
+    {
+        var account = LedgerAccount.OpenSystemFundingAccount(Currency.Usd, "USD Funding Source");
+
+        Assert.NotEqual(Guid.Empty, account.Id);
+        Assert.Null(account.OwnerUserId);
+        Assert.Equal(LedgerAccountType.SystemFunding, account.Type);
+        Assert.Equal(Currency.Usd, account.Currency);
+        Assert.Equal("USD Funding Source", account.DisplayName);
     }
 
     [Theory]
