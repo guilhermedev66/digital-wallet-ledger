@@ -88,3 +88,20 @@ each session rather than trusting this note to stay current on *who*, only on
   deadlock against a reverse-direction transfer). See
   `EfTransactionRepository.PostTransferIfSufficientFundsAsync`. If a future milestone
   ever needs to debit two accounts in one operation, this reasoning needs revisiting.
+  No FK exists from `LedgerEntries.AccountId` to `LedgerAccounts.Id` (only the
+  `TransactionId` FK) - if one is ever added for referential integrity, Postgres's
+  implicit `FOR KEY SHARE` lock on insert would reopen the reverse-direction-transfer
+  deadlock this design currently avoids; both accounts would need locking in a
+  canonical order at that point, not just the source.
+- Inside any "lock, then check something, then maybe insert" flow (like
+  `PostTransferIfSufficientFundsAsync`), order the checks so idempotency detection
+  runs before any check that depends on mutable state the first request could have
+  already changed (like balance) - not just as a side effect of the unique-constraint
+  violation on insert. Found in M3 review: the balance check ran first, so a second
+  identical concurrent request against a near-exhausted post-debit balance saw
+  InsufficientFunds instead of being recognized as a replay of the first request's
+  already-successful transfer. Not fund-corrupting on its own, but a client told its
+  transfer failed when it actually succeeded is exactly the setup for a genuine
+  double-transfer if it retries with a new key. The regression test that caught this
+  needed to fund to *exactly* the combined debit amount - funding with headroom to
+  spare doesn't exercise the branch where the ordering bug mattered.

@@ -31,9 +31,9 @@ Status legend: `[ ]` not started, `[~]` in progress, `[x]` done.
 ## M3 — Atomic transfers + idempotency + concurrency
 - [x] Wallet-to-wallet transfer command - `POST /api/wallets/{id}/transfer`, source ownership-scoped, same-currency required, self-transfer rejected. Insufficient-funds checked atomically under a row lock (`SELECT ... FOR UPDATE` on the source account, ReadCommitted isolation), not from an earlier separate read.
 - [x] Idempotency actually enforced this time (was a no-op header since M2) - unique DB constraint on (RequestedByUserId, IdempotencyKey), replay with matching parameters returns the original result, replay with different parameters is rejected (409), retrofitted onto SimulateFunding too.
-- [x] Concurrency integration tests: 6 adversarial scenarios (draining past balance, concurrent identical replay, sequential replay match/conflict, replay after a failed attempt, unrelated-transfers-don't-serialize) - written and reviewed line-by-line, same Docker-gated status as the rest of this project.
+- [x] Concurrency integration tests: 7 adversarial scenarios (draining past balance, concurrent identical replay at comfortable and at exactly-exhausted balance, sequential replay match/conflict, replay after a failed attempt, unrelated-transfers-don't-serialize) - written and reviewed line-by-line, same Docker-gated status as the rest of this project.
 - [x] Transfer history endpoint - `GET /api/wallets/{id}/history?page=&pageSize=`, paginated, ownership-scoped.
-- [ ] Financial-correctness pass on M3 (highest scrutiny of any milestone - real fund movement + concurrency) - not yet requested from the Orchestrator.
+- [x] Financial-correctness pass on M3 (1 real bug found and fixed: idempotency check was running after the balance check inside PostTransferIfSufficientFundsAsync instead of before, so a concurrent identical replay against a near-exhausted post-debit balance got a false InsufficientFunds instead of being recognized as a replay - see MEMORY.md and git history (commit 018817b) rather than duplicated here). Revalidation pending.
 
 ## M4 — Reversals / reconciliation / activity
 - [ ] Compensating reversal transactions (no mutation/deletion of posted history).
