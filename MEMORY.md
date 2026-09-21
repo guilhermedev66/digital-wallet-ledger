@@ -65,3 +65,26 @@ each session rather than trusting this note to stay current on *who*, only on
   seeding failure crash the whole process at boot would make it impossible to even
   smoke-test routing/auth locally, which M1 had relied on. Established pattern: log via
   `app.Logger`, keep serving every other endpoint.
+- Never a 403 anywhere in this API - this is a cross-cutting, load-bearing convention
+  now (wallet ownership in M1, transfer destination in M3), not a one-off: any "you
+  can't do that" case is either a 404 (ownership-scoped, existence hidden from
+  non-owners) or a distinct 4xx that isn't about ownership at all (400 for bad
+  input/bad destination, 422 for insufficient funds, 409 for idempotency conflict).
+  Keep this in mind for M4/M5 - don't introduce a 403 without a real reason to break
+  the pattern.
+- Idempotency replay semantics (decided in M3, applies to every command carrying an
+  IdempotencyKey - SimulateFunding and Transfer so far): replaying the same
+  (RequestedByUserId, IdempotencyKey) with matching parameters returns the *original*
+  result (never re-posts). Replaying it with *different* parameters is rejected
+  (`IdempotencyKeyConflictException`, 409) - never silently applied, never silently
+  swallowed. A failed attempt (e.g. insufficient funds) never persists a row, so
+  retrying the same key after a failure is correctly treated as a fresh attempt, not
+  blocked. `TransactionMatching.HasMatchingEntry` is the shared comparison helper -
+  reuse it for any new idempotent command rather than re-deriving matching logic.
+- Concurrency control for debiting an account is a row lock (`SELECT ... FOR UPDATE`)
+  on that account only, under ReadCommitted isolation - not SERIALIZABLE, not a lock
+  on the credited account too (credits can't overdraw, so nothing there needs
+  protecting, and never taking two locks per transfer rules out a lock-ordering
+  deadlock against a reverse-direction transfer). See
+  `EfTransactionRepository.PostTransferIfSufficientFundsAsync`. If a future milestone
+  ever needs to debit two accounts in one operation, this reasoning needs revisiting.

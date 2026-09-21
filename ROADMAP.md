@@ -29,10 +29,11 @@ Status legend: `[ ]` not started, `[~]` in progress, `[x]` done.
 - [x] Financial-correctness pass on M2 (2 IMPORTANT findings: torn-read balance query fixed to a single SQL statement before M3's insufficient-funds check depends on it, idempotency dedup gap acknowledged as correctly-deferred M3 work; 2 OPTIONAL items also fixed - SystemFunding filtered unique index, overflow→ArgumentException translation). Revalidated: diff independently reviewed, 53+34 unit tests independently re-run. The single-query balance SQL translation itself still needs the Docker-gated integration tests to prove against real Postgres. Details in git history (commit 4bfb16f) rather than duplicated here.
 
 ## M3 — Atomic transfers + idempotency + concurrency
-- [ ] Wallet-to-wallet transfer command, single DB transaction, insufficient-funds handling.
-- [ ] Idempotency key support with unique constraint + replay test.
-- [ ] Concurrency integration tests: concurrent transfers against real PostgreSQL (double-spend, races).
-- [ ] Transfer history endpoint (paginated, ownership-scoped).
+- [x] Wallet-to-wallet transfer command - `POST /api/wallets/{id}/transfer`, source ownership-scoped, same-currency required, self-transfer rejected. Insufficient-funds checked atomically under a row lock (`SELECT ... FOR UPDATE` on the source account, ReadCommitted isolation), not from an earlier separate read.
+- [x] Idempotency actually enforced this time (was a no-op header since M2) - unique DB constraint on (RequestedByUserId, IdempotencyKey), replay with matching parameters returns the original result, replay with different parameters is rejected (409), retrofitted onto SimulateFunding too.
+- [x] Concurrency integration tests: 6 adversarial scenarios (draining past balance, concurrent identical replay, sequential replay match/conflict, replay after a failed attempt, unrelated-transfers-don't-serialize) - written and reviewed line-by-line, same Docker-gated status as the rest of this project.
+- [x] Transfer history endpoint - `GET /api/wallets/{id}/history?page=&pageSize=`, paginated, ownership-scoped.
+- [ ] Financial-correctness pass on M3 (highest scrutiny of any milestone - real fund movement + concurrency) - not yet requested from the Orchestrator.
 
 ## M4 — Reversals / reconciliation / activity
 - [ ] Compensating reversal transactions (no mutation/deletion of posted history).
