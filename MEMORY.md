@@ -11,6 +11,20 @@ financial/domain model and why.
   without checking first.
 - `dotnet new sln` on this SDK (10.0.401) generates `.slnx`, not `.sln`. Build with
   `dotnet build WalletLedger.slnx`.
+- `dotnet` in this shell is a wrapper (`~/.local/bin/dotnet`) that execs the Windows
+  `dotnet.exe`. A locally-run ASP.NET Core app (`dotnet run`) therefore binds to
+  Windows' network stack, not WSL's — plain WSL `curl` gets connection refused
+  (`status:000`) against `localhost`. Use `curl.exe` (via WSL interop) to smoke-test
+  a locally running app instead.
+- `Npgsql.EntityFrameworkCore.PostgreSQL` tends to lag `Microsoft.EntityFrameworkCore`
+  patch releases, which silently wins an MSBuild reference conflict in Npgsql's favor
+  (older `Microsoft.EntityFrameworkCore.Relational`) even when a newer version is
+  otherwise pulled in — showed up as an MSB3277 warning, not an error, so it's easy to
+  ship without noticing. Fix: pin `Microsoft.EntityFrameworkCore.Relational` directly
+  to match whatever version `Microsoft.EntityFrameworkCore` is on.
+- `dotnet user-secrets` works fine here for local JWT signing key / connection string
+  (no Docker/network dependency) — this is the established pattern for local secrets
+  in this repo; never put real values in `appsettings*.json`.
 
 ## Multi-agent topology (actual, not aspirational)
 

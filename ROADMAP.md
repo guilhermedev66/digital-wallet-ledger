@@ -13,11 +13,11 @@ Status legend: `[ ]` not started, `[~]` in progress, `[x]` done.
 - [x] UX/visual research and DESIGN_DIRECTION.md — Direction 1 "Ledger-as-Instrument" chosen.
 
 ## M1 — Identity + Wallet foundation
-- [ ] User registration/login, password hashing, JWT issuance.
-- [ ] `LedgerAccount`/Wallet creation tied to an authenticated user, currency selection.
-- [ ] Ownership-scoped read endpoints (list my wallets, get my wallet by id — 403/404 for others').
-- [ ] EF Core PostgreSQL migrations, Testcontainers-backed integration tests.
-- [ ] Authorization matrix tests: anonymous, owner, non-owner, admin (see CLAUDE.md security gate).
+- [x] User registration/login, password hashing (ASP.NET Core Identity's PasswordHasher<T>), JWT issuance (HS256, fails fast on a signing key under 256 bits).
+- [x] `LedgerAccount`/Wallet creation tied to an authenticated user (owner id from JWT `sub` claim only), currency selection.
+- [x] Ownership-scoped read endpoints (list my wallets, get my wallet by id — **404 only, never 403**, for both "doesn't exist" and "not yours"; admin role bypasses ownership, see ARCHITECTURE.md AuthN/AuthZ).
+- [x] EF Core PostgreSQL migrations generated (schema only — not yet run against a real Postgres locally, see known environment blockers).
+- [ ] Testcontainers-backed integration tests + authorization matrix tests (anonymous, owner, non-owner, admin) — written, can't run locally (no Docker daemon), needs verification once Docker/CI is available.
 
 ## M2 — Double-entry ledger
 - [ ] `Transaction` + `LedgerEntry` model, balance-invariant enforced in Domain constructors.
