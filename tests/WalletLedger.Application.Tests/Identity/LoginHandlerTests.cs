@@ -35,6 +35,31 @@ public class LoginHandlerTests
     }
 
     [Fact]
+    public async Task HandleAsync_PasswordOverMaxLength_ThrowsInvalidCredentialsWithoutVerifying()
+    {
+        var handler = CreateHandler();
+        var oversizedPassword = new string('a', 129);
+        var command = new LoginCommand("user@example.com", oversizedPassword);
+
+        await Assert.ThrowsAsync<InvalidCredentialsException>(() => handler.HandleAsync(command, CancellationToken.None));
+
+        _passwordHasher.Verify(h => h.Verify(It.IsAny<string>(), It.IsAny<string>()), Times.Never);
+        _userRepository.Verify(r => r.GetByEmailAsync(It.IsAny<Email>(), It.IsAny<CancellationToken>()), Times.Never);
+    }
+
+    [Fact]
+    public async Task HandleAsync_EmailOverMaxLength_ThrowsInvalidCredentialsWithoutLookup()
+    {
+        var handler = CreateHandler();
+        var oversizedLocalPart = new string('a', 315);
+        var command = new LoginCommand($"{oversizedLocalPart}@example.com", "whatever123");
+
+        await Assert.ThrowsAsync<InvalidCredentialsException>(() => handler.HandleAsync(command, CancellationToken.None));
+
+        _userRepository.Verify(r => r.GetByEmailAsync(It.IsAny<Email>(), It.IsAny<CancellationToken>()), Times.Never);
+    }
+
+    [Fact]
     public async Task HandleAsync_WrongPassword_ThrowsInvalidCredentialsException()
     {
         var user = User.Register(Email.Parse("user@example.com"), "real-hash");

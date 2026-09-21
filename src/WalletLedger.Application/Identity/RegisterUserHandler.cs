@@ -9,11 +9,21 @@ public sealed record RegisterUserCommand(string Email, string Password);
 
 public sealed class RegisterUserHandler(IUserRepository userRepository, IPasswordHasher passwordHasher)
 {
+    // Checked before Email.Parse/IPasswordHasher.Hash run at all - an unauthenticated caller
+    // sending an oversized payload shouldn't get to force disproportionate parsing/hashing work.
+    private const int MaxEmailLength = 320; // matches the Users.Email column and RFC 5321
+    private const int MaxPasswordLength = 128;
+
     public async Task<Guid> HandleAsync(RegisterUserCommand command, CancellationToken ct)
     {
-        if (string.IsNullOrWhiteSpace(command.Password) || command.Password.Length < 8)
+        if (string.IsNullOrEmpty(command.Email) || command.Email.Length > MaxEmailLength)
         {
-            throw new ArgumentException("Password must be at least 8 characters long.", nameof(command));
+            throw new ArgumentException($"Email must be 1-{MaxEmailLength} characters long.", nameof(command));
+        }
+
+        if (string.IsNullOrWhiteSpace(command.Password) || command.Password.Length is < 8 or > MaxPasswordLength)
+        {
+            throw new ArgumentException($"Password must be 8-{MaxPasswordLength} characters long.", nameof(command));
         }
 
         var email = Email.Parse(command.Email);

@@ -29,6 +29,30 @@ public class RegisterUserHandlerTests
     }
 
     [Fact]
+    public async Task HandleAsync_PasswordOverMaxLength_ThrowsArgumentExceptionWithoutHashing()
+    {
+        var handler = CreateHandler();
+        var oversizedPassword = new string('a', 129);
+        var command = new RegisterUserCommand("user@example.com", oversizedPassword);
+
+        await Assert.ThrowsAsync<ArgumentException>(() => handler.HandleAsync(command, CancellationToken.None));
+
+        _passwordHasher.Verify(h => h.Hash(It.IsAny<string>()), Times.Never);
+    }
+
+    [Fact]
+    public async Task HandleAsync_EmailOverMaxLength_ThrowsArgumentExceptionWithoutParsing()
+    {
+        var handler = CreateHandler();
+        var oversizedLocalPart = new string('a', 315);
+        var command = new RegisterUserCommand($"{oversizedLocalPart}@example.com", "password123");
+
+        await Assert.ThrowsAsync<ArgumentException>(() => handler.HandleAsync(command, CancellationToken.None));
+
+        _userRepository.Verify(r => r.GetByEmailAsync(It.IsAny<Email>(), It.IsAny<CancellationToken>()), Times.Never);
+    }
+
+    [Fact]
     public async Task HandleAsync_EmailAlreadyRegistered_ThrowsEmailAlreadyRegisteredException()
     {
         var existingUser = User.Register(Email.Parse("user@example.com"), "some-hash");

@@ -60,4 +60,25 @@ public sealed class AuthEndpointsTests(PostgresContainerFixture postgres)
         // never reveals whether the email is registered.
         Assert.Equal(HttpStatusCode.Unauthorized, response.StatusCode);
     }
+
+    [Fact]
+    public async Task Register_ConcurrentSameEmail_OneSucceedsOneConflicts_NeverServerError()
+    {
+        using var factory = new WalletLedgerApiFactory(postgres.ConnectionString);
+        using var clientA = factory.CreateClient();
+        using var clientB = factory.CreateClient();
+        var email = UniqueEmail();
+
+        // RegisterUserHandler's own GetByEmailAsync-then-insert check races here - the DB's
+        // unique index on Email is the real guarantee (see EfUserRepository.AddAsync). Both
+        // requests target the same email at the same instant; exactly one must win.
+        var responses = await Task.WhenAll(
+            clientA.PostAsJsonAsync("/api/auth/register", new RegisterRequest(email, "correct horse battery staple")),
+            clientB.PostAsJsonAsync("/api/auth/register", new RegisterRequest(email, "a-different-password")));
+
+        var statusCodes = responses.Select(r => r.StatusCode).OrderBy(c => c).ToArray();
+
+        Assert.DoesNotContain(HttpStatusCode.InternalServerError, statusCodes);
+        Assert.Equal([HttpStatusCode.Created, HttpStatusCode.Conflict], statusCodes);
+    }
 }
