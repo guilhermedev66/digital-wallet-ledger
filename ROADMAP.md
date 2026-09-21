@@ -21,10 +21,12 @@ Status legend: `[ ]` not started, `[~]` in progress, `[x]` done.
 - [x] Security gate pass on M1 (read-only audit → 2 IMPORTANT findings → fixed with regression tests → revalidated: 45/45 unit tests independently re-run, diff independently reviewed). Details in git history (commit 8e4c6d1) rather than duplicated here.
 
 ## M2 — Double-entry ledger
-- [ ] `Transaction` + `LedgerEntry` model, balance-invariant enforced in Domain constructors.
-- [ ] Simulated funding operation (clearly labeled demo-only, posts from a system funding account).
-- [ ] Balance derivation query + unit tests proving balance == sum of entries.
-- [ ] Domain unit tests actively trying to construct an unbalanced transaction (must be impossible).
+- [x] `Transaction` + `LedgerEntry` model, balance-invariant enforced structurally in `Transaction.Post` (the only construction path - private constructor, `Entries` is a getter-only `IReadOnlyList` with no Add method).
+- [x] Simulated funding operation - `POST /api/wallets/{id}/simulate-funding`, posts from a `SystemFunding` `LedgerAccount` seeded per-currency at Api startup (best-effort - won't crash boot if the DB is unreachable, see MEMORY.md).
+- [x] Balance derivation query (`GET /api/wallets/{id}/balance`) - unit tests (mocked repo) proving the handler delegates correctly; the real "balance == sum of entries through a real DB" proof is in the Docker-gated integration tests below, not unit tests.
+- [x] Domain unit tests actively trying to construct an unbalanced transaction (22 adversarial tests: off-by-one, all-debit/all-credit, zero/negative amounts, mixed currencies, etc. - all correctly rejected).
+- [~] Integration tests for the funding→balance flow (proves accumulation across multiple funding calls) - written, same Docker-gated status as M1's integration tests.
+- [ ] Security/financial-correctness pass on M2 (per CLAUDE.md security gate + ARCHITECTURE.md section 9) - not yet requested from the Orchestrator.
 
 ## M3 — Atomic transfers + idempotency + concurrency
 - [ ] Wallet-to-wallet transfer command, single DB transaction, insufficient-funds handling.

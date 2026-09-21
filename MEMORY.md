@@ -44,3 +44,24 @@ each session rather than trusting this note to stay current on *who*, only on
 - Balance is always derived from `LedgerEntry` rows, never a mutable column. This is
   the non-negotiable center of the project — don't let a future milestone add a
   shortcut mutable balance for convenience.
+- Balance sign convention (not written down in ARCHITECTURE.md, decided in M2): every
+  `LedgerAccount` — wallets and the `SystemFunding` account alike — uses one uniform
+  debit-normal formula, `balance = sum(Debit entries) - sum(Credit entries)`. No
+  per-account-type sign flip. Consequence: a `SystemFunding` account's own balance goes
+  increasingly negative over time since it only ever gives money away via
+  SimulatedFunding (debit the wallet, credit the funding account) — that's intentional,
+  not a bug, and that account's balance is never surfaced to a caller. If a future
+  milestone introduces an account type that should behave credit-normal (a real
+  liability/revenue account), it needs its own explicit sign handling — don't assume
+  this formula generalizes.
+- `Transaction.Entries` is a getter-only `IReadOnlyList<LedgerEntry>` backed by a
+  private field, with no Add/setter — EF Core needs
+  `builder.Navigation(t => t.Entries).UsePropertyAccessMode(PropertyAccessMode.Field)`
+  in `TransactionConfiguration` to materialize it; without that it can throw a
+  "navigation has no setter" error at model-build time.
+- Any `IWalletRepository`/`ITransactionRepository`-dependent startup step (e.g. seeding
+  the `SystemFunding` accounts in `Program.cs`) must be wrapped in try/catch and log a
+  warning rather than throw — this WSL distro has no reachable Postgres, and letting a
+  seeding failure crash the whole process at boot would make it impossible to even
+  smoke-test routing/auth locally, which M1 had relied on. Established pattern: log via
+  `app.Logger`, keep serving every other endpoint.
