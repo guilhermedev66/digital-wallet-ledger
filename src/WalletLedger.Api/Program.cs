@@ -4,7 +4,10 @@ using Microsoft.EntityFrameworkCore;
 using Microsoft.IdentityModel.Tokens;
 using WalletLedger.Application.Abstractions;
 using WalletLedger.Application.Identity;
+using WalletLedger.Application.Ledger;
 using WalletLedger.Application.Wallets;
+using WalletLedger.Domain.Entities;
+using WalletLedger.Domain.ValueObjects;
 using WalletLedger.Infrastructure.Persistence;
 using WalletLedger.Infrastructure.Security;
 
@@ -21,6 +24,7 @@ builder.Services.Configure<JwtOptions>(builder.Configuration.GetSection(JwtOptio
 
 builder.Services.AddScoped<IUserRepository, EfUserRepository>();
 builder.Services.AddScoped<IWalletRepository, EfWalletRepository>();
+builder.Services.AddScoped<ITransactionRepository, EfTransactionRepository>();
 builder.Services.AddSingleton<IPasswordHasher, PasswordHasher>();
 builder.Services.AddSingleton<IJwtTokenGenerator, JwtTokenGenerator>();
 
@@ -29,6 +33,8 @@ builder.Services.AddScoped<LoginHandler>();
 builder.Services.AddScoped<CreateWalletHandler>();
 builder.Services.AddScoped<ListMyWalletsHandler>();
 builder.Services.AddScoped<GetWalletByIdHandler>();
+builder.Services.AddScoped<SimulateFundingHandler>();
+builder.Services.AddScoped<GetWalletBalanceHandler>();
 
 var jwtSection = builder.Configuration.GetSection(JwtOptions.SectionName);
 var jwtSigningKey = jwtSection["SigningKey"]
@@ -70,7 +76,39 @@ app.UseAuthorization();
 
 app.MapControllers();
 
+try
+{
+    await SeedSystemFundingAccountsAsync(app.Services);
+}
+catch (Exception ex)
+{
+    // Best-effort: don't let an unreachable database at boot (e.g. no local Postgres -
+    // this WSL distro has no Docker daemon, see MEMORY.md) crash the whole process. Every
+    // other endpoint keeps working; simulated-funding will fail loudly with its own
+    // "no system funding account configured" error until this is resolved and the app
+    // restarts (or a later request happens to succeed once the DB comes back).
+    app.Logger.LogWarning(ex, "Could not seed system funding accounts at startup - simulated funding will fail until this is resolved.");
+}
+
 app.Run();
+
+// One SystemFunding LedgerAccount per supported currency, created out-of-band at boot -
+// never reachable through any client-facing endpoint (see LedgerAccount.OpenSystemFundingAccount).
+static async Task SeedSystemFundingAccountsAsync(IServiceProvider services)
+{
+    using var scope = services.CreateScope();
+    var walletRepository = scope.ServiceProvider.GetRequiredService<IWalletRepository>();
+
+    foreach (var currency in Enum.GetValues<Currency>())
+    {
+        var existing = await walletRepository.GetSystemFundingAccountAsync(currency, CancellationToken.None);
+        if (existing is null)
+        {
+            var account = LedgerAccount.OpenSystemFundingAccount(currency, $"{currency} Simulated Funding Source");
+            await walletRepository.AddAsync(account, CancellationToken.None);
+        }
+    }
+}
 
 /// <summary>Entry point marker for WebApplicationFactory-based integration tests.</summary>
 public partial class Program;

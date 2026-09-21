@@ -2,6 +2,7 @@ using System.IdentityModel.Tokens.Jwt;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using WalletLedger.Application.Dtos;
+using WalletLedger.Application.Ledger;
 using WalletLedger.Application.Wallets;
 using WalletLedger.Domain.ValueObjects;
 
@@ -13,7 +14,9 @@ namespace WalletLedger.Api.Controllers;
 public sealed class WalletsController(
     CreateWalletHandler createWalletHandler,
     ListMyWalletsHandler listMyWalletsHandler,
-    GetWalletByIdHandler getWalletByIdHandler) : ControllerBase
+    GetWalletByIdHandler getWalletByIdHandler,
+    SimulateFundingHandler simulateFundingHandler,
+    GetWalletBalanceHandler getWalletBalanceHandler) : ControllerBase
 {
     [HttpPost]
     public async Task<ActionResult<WalletDto>> Create(CreateWalletRequest request, CancellationToken ct)
@@ -46,6 +49,36 @@ public sealed class WalletsController(
         return wallet is null ? NotFound() : Ok(wallet);
     }
 
+    [HttpPost("{id:guid}/simulate-funding")]
+    public async Task<ActionResult<TransactionDto>> SimulateFunding(
+        Guid id, SimulateFundingRequest request, [FromHeader(Name = "Idempotency-Key")] string? idempotencyKey, CancellationToken ct)
+    {
+        if (string.IsNullOrWhiteSpace(idempotencyKey))
+        {
+            return BadRequest(new { message = "The 'Idempotency-Key' header is required." });
+        }
+
+        try
+        {
+            var transaction = await simulateFundingHandler.HandleAsync(
+                new SimulateFundingCommand(GetOwnerUserId(), id, request.AmountMinorUnits, idempotencyKey), ct);
+
+            // Same non-leak pattern as GetById: not-found and not-yours are both 404.
+            return transaction is null ? NotFound() : Ok(transaction);
+        }
+        catch (ArgumentException ex)
+        {
+            return BadRequest(new { message = ex.Message });
+        }
+    }
+
+    [HttpGet("{id:guid}/balance")]
+    public async Task<ActionResult<WalletBalanceDto>> GetBalance(Guid id, CancellationToken ct)
+    {
+        var balance = await getWalletBalanceHandler.HandleAsync(new GetWalletBalanceQuery(GetOwnerUserId(), id), ct);
+        return balance is null ? NotFound() : Ok(balance);
+    }
+
     /// <summary>Owner id is always resolved from the authenticated caller's own JWT claims - never from client input.</summary>
     private Guid GetOwnerUserId()
     {
@@ -60,3 +93,5 @@ public sealed class WalletsController(
 }
 
 public sealed record CreateWalletRequest(string Currency, string? DisplayName);
+
+public sealed record SimulateFundingRequest(long AmountMinorUnits);
