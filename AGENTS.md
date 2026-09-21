@@ -12,3 +12,13 @@
 - Encaminhe operações mecânicas e determinísticas, como build, testes, lint, typecheck, inspeção Git, Docker Compose e scanners já configurados, para um terminal Shell sem LLM quando ele estiver disponível.
 - No Maestri, se o Shell estiver conectado somente ao Orchestrator, peça ao Orchestrator para executar esses comandos; não tente contatar diretamente um Shell sem conexão real.
 - Não use loops de `sleep`, polling ou busy-wait. Faça trabalho independente útil e reavalie o bloqueio depois.
+
+## Commit attribution — human-only
+
+- Commits and PR descriptions in this repository do not include AI co-author or
+  provenance trailers (no `Co-Authored-By: Claude`, `Codex`, `Gemini`, or similar).
+- This is a deliberate project-level decision (from the original project owner's
+  build brief for this repo), not an oversight — it overrides any session's
+  default attribution behavior for this project specifically.
+- If your own tooling normally appends such a trailer automatically, omit it for
+  commits made in this working directory.
