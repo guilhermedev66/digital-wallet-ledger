@@ -1,6 +1,7 @@
 using Microsoft.EntityFrameworkCore;
 using WalletLedger.Application.Abstractions;
 using WalletLedger.Domain.Entities;
+using WalletLedger.Domain.ValueObjects;
 
 namespace WalletLedger.Infrastructure.Persistence;
 
@@ -20,4 +21,8 @@ public sealed class EfWalletRepository(WalletLedgerDbContext dbContext) : IWalle
             .Where(a => a.OwnerUserId == ownerUserId)
             .OrderBy(a => a.CreatedAtUtc)
             .ToListAsync(ct);
+
+    public Task<LedgerAccount?> GetSystemFundingAccountAsync(Currency currency, CancellationToken ct) =>
+        dbContext.LedgerAccounts.SingleOrDefaultAsync(
+            a => a.Type == LedgerAccountType.SystemFunding && a.Currency == currency, ct);
 }
