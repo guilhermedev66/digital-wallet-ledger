@@ -35,12 +35,4 @@ public sealed class LedgerAccount
         };
     }
 
-    public static LedgerAccount FromPersistence(Guid id, Guid ownerUserId, Currency currency, string? displayName, DateTime createdAtUtc) => new()
-    {
-        Id = id,
-        OwnerUserId = ownerUserId,
-        Currency = currency,
-        DisplayName = displayName,
-        CreatedAtUtc = createdAtUtc,
-    };
 }

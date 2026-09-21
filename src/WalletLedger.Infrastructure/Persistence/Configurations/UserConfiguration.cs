@@ -24,6 +24,9 @@ public sealed class UserConfiguration : IEntityTypeConfiguration<User>
         builder.Property(u => u.PasswordHash)
             .IsRequired();
 
+        builder.Property(u => u.IsAdmin)
+            .IsRequired();
+
         builder.Property(u => u.CreatedAtUtc)
             .IsRequired();
     }

@@ -65,6 +65,9 @@ namespace WalletLedger.Infrastructure.Migrations
                         .HasColumnType("character varying(320)")
                         .HasColumnName("Email");
 
+                    b.Property<bool>("IsAdmin")
+                        .HasColumnType("boolean");
+
                     b.Property<string>("PasswordHash")
                         .IsRequired()
                         .HasColumnType("text");

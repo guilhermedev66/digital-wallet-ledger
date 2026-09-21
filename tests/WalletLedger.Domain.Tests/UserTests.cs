@@ -29,7 +29,18 @@ public class UserTests
         Assert.NotEqual(Guid.Empty, user.Id);
         Assert.Equal(email, user.Email);
         Assert.Equal("some-hash", user.PasswordHash);
+        Assert.False(user.IsAdmin);
         Assert.InRange(user.CreatedAtUtc, before, after);
+    }
+
+    [Fact]
+    public void PromoteToAdmin_SetsIsAdminTrue()
+    {
+        var user = User.Register(Email.Parse("foo@example.com"), "some-hash");
+
+        user.PromoteToAdmin();
+
+        Assert.True(user.IsAdmin);
     }
 
     [Fact]

@@ -35,12 +35,17 @@ public sealed class JwtTokenGenerator : IJwtTokenGenerator
         var now = DateTime.UtcNow;
         var expiresAtUtc = now.AddMinutes(_options.ExpiryMinutes);
 
-        var claims = new[]
+        var claims = new List<Claim>
         {
-            new Claim(JwtRegisteredClaimNames.Sub, user.Id.ToString()),
-            new Claim(JwtRegisteredClaimNames.Email, user.Email.Value),
-            new Claim(JwtRegisteredClaimNames.Jti, Guid.NewGuid().ToString()),
+            new(JwtRegisteredClaimNames.Sub, user.Id.ToString()),
+            new(JwtRegisteredClaimNames.Email, user.Email.Value),
+            new(JwtRegisteredClaimNames.Jti, Guid.NewGuid().ToString()),
         };
+
+        if (user.IsAdmin)
+        {
+            claims.Add(new Claim("role", "admin"));
+        }
 
         var token = new JwtSecurityToken(
             issuer: _options.Issuer,

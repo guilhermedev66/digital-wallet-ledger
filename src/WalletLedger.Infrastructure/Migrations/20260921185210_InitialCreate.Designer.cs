@@ -12,7 +12,7 @@ using WalletLedger.Infrastructure.Persistence;
 namespace WalletLedger.Infrastructure.Migrations
 {
     [DbContext(typeof(WalletLedgerDbContext))]
-    [Migration("20260921184247_InitialCreate")]
+    [Migration("20260921185210_InitialCreate")]
     partial class InitialCreate
     {
         /// <inheritdoc />
@@ -67,6 +67,9 @@ namespace WalletLedger.Infrastructure.Migrations
                         .HasMaxLength(320)
                         .HasColumnType("character varying(320)")
                         .HasColumnName("Email");
+
+                    b.Property<bool>("IsAdmin")
+                        .HasColumnType("boolean");
 
                     b.Property<string>("PasswordHash")
                         .IsRequired()

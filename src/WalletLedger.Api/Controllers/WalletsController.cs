@@ -38,7 +38,8 @@ public sealed class WalletsController(
     [HttpGet("{id:guid}")]
     public async Task<ActionResult<WalletDto>> GetById(Guid id, CancellationToken ct)
     {
-        var wallet = await getWalletByIdHandler.HandleAsync(new GetWalletByIdQuery(GetOwnerUserId(), id), ct);
+        var wallet = await getWalletByIdHandler.HandleAsync(
+            new GetWalletByIdQuery(GetOwnerUserId(), id, CallerIsAdmin: User.IsInRole("admin")), ct);
 
         // Not found and "not yours" are indistinguishable here on purpose - both 404,
         // never 403, so a non-owner can't use this endpoint to probe wallet existence.

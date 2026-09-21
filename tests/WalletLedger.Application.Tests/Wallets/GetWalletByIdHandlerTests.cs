@@ -43,6 +43,28 @@ public class GetWalletByIdHandlerTests
     }
 
     [Fact]
+    public async Task HandleAsync_CallerIsAdmin_ReturnsDtoForSomeoneElsesWallet()
+    {
+        var actualOwnerId = Guid.NewGuid();
+        var adminUserId = Guid.NewGuid();
+        var account = LedgerAccount.Open(actualOwnerId, Currency.Usd, "Someone else's wallet");
+
+        var walletRepository = new Mock<IWalletRepository>();
+        walletRepository
+            .Setup(r => r.GetByIdAsync(account.Id, It.IsAny<CancellationToken>()))
+            .ReturnsAsync(account);
+
+        var handler = new GetWalletByIdHandler(walletRepository.Object);
+
+        var result = await handler.HandleAsync(
+            new GetWalletByIdQuery(adminUserId, account.Id, CallerIsAdmin: true), CancellationToken.None);
+
+        Assert.NotNull(result);
+        Assert.Equal(account.Id, result!.Id);
+        Assert.Equal(actualOwnerId, result.OwnerUserId);
+    }
+
+    [Fact]
     public async Task HandleAsync_WalletBelongsToRequestingOwner_ReturnsDto()
     {
         var ownerId = Guid.NewGuid();
