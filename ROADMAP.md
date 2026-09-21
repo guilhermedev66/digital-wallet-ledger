@@ -9,8 +9,8 @@ Status legend: `[ ]` not started, `[~]` in progress, `[x]` done.
 - [x] docker-compose.yml (PostgreSQL), .env.example, .gitignore.
 - [x] GitHub Actions CI skeleton (backend build/test, frontend lint/typecheck/build, secret scan).
 - [x] ARCHITECTURE.md — financial invariants, ledger model, auth model.
-- [ ] Initial commit + (optional) GitHub remote.
-- [ ] UX/visual research and DESIGN_DIRECTION.md (assigned to a peer session — see MEMORY.md).
+- [x] Initial commit (local; GitHub remote still pending a decision — see below).
+- [x] UX/visual research and DESIGN_DIRECTION.md — Direction 1 "Ledger-as-Instrument" chosen.
 
 ## M1 — Identity + Wallet foundation
 - [ ] User registration/login, password hashing, JWT issuance.
