@@ -1,5 +1,6 @@
 using Moq;
 using WalletLedger.Application.Abstractions;
+using WalletLedger.Application.Exceptions;
 using WalletLedger.Application.Ledger;
 using WalletLedger.Domain.Entities;
 using WalletLedger.Domain.ValueObjects;
@@ -8,6 +9,15 @@ namespace WalletLedger.Application.Tests.Ledger;
 
 public class SimulateFundingHandlerTests
 {
+    private static Transaction BuildFundingTransaction(
+        Guid ownerId, Guid walletId, Guid fundingAccountId, long amount, Currency currency, string idempotencyKey = "idem-key") =>
+        Transaction.Post(
+            ownerId, idempotencyKey, TransactionType.SimulatedFunding,
+            [
+                new LedgerEntryLine(walletId, LedgerEntryDirection.Debit, amount, currency),
+                new LedgerEntryLine(fundingAccountId, LedgerEntryDirection.Credit, amount, currency),
+            ]);
+
     private const long MaxAmountMinorUnits = 1_000_000_00;
     private const int MaxIdempotencyKeyLength = 128;
 
@@ -150,5 +160,108 @@ public class SimulateFundingHandlerTests
         Assert.Equal(addedTransaction.Id, dto!.Id);
         Assert.Equal(nameof(TransactionType.SimulatedFunding), dto.Type);
         Assert.Equal(2, dto.Entries.Count);
+    }
+
+    [Fact]
+    public async Task HandleAsync_IdempotencyKeyAlreadyUsedWithMatchingParameters_ReturnsExistingDto_WithoutCallingAddAsync()
+    {
+        var ownerId = Guid.NewGuid();
+        var wallet = LedgerAccount.Open(ownerId, Currency.Usd, "My wallet");
+        var fundingAccount = LedgerAccount.OpenSystemFundingAccount(Currency.Usd, "USD Funding Source");
+        var existing = BuildFundingTransaction(ownerId, wallet.Id, fundingAccount.Id, 5_000, Currency.Usd);
+
+        _walletRepository.Setup(r => r.GetByIdAsync(wallet.Id, It.IsAny<CancellationToken>())).ReturnsAsync(wallet);
+        _walletRepository.Setup(r => r.GetSystemFundingAccountAsync(Currency.Usd, It.IsAny<CancellationToken>())).ReturnsAsync(fundingAccount);
+        _transactionRepository
+            .Setup(r => r.FindByIdempotencyKeyAsync(ownerId, "idem-key", It.IsAny<CancellationToken>()))
+            .ReturnsAsync(existing);
+
+        var handler = CreateHandler();
+        var command = new SimulateFundingCommand(ownerId, wallet.Id, 5_000, "idem-key");
+
+        var dto = await handler.HandleAsync(command, CancellationToken.None);
+
+        Assert.NotNull(dto);
+        Assert.Equal(existing.Id, dto!.Id);
+        _transactionRepository.Verify(r => r.AddAsync(It.IsAny<Transaction>(), It.IsAny<CancellationToken>()), Times.Never);
+    }
+
+    [Fact]
+    public async Task HandleAsync_IdempotencyKeyAlreadyUsedWithDifferentParameters_ThrowsConflict_WithoutCallingAddAsync()
+    {
+        var ownerId = Guid.NewGuid();
+        var wallet = LedgerAccount.Open(ownerId, Currency.Usd, "My wallet");
+        var fundingAccount = LedgerAccount.OpenSystemFundingAccount(Currency.Usd, "USD Funding Source");
+        // Same key was used before for a different amount (2_000, not 5_000 as requested now).
+        var existing = BuildFundingTransaction(ownerId, wallet.Id, fundingAccount.Id, 2_000, Currency.Usd);
+
+        _walletRepository.Setup(r => r.GetByIdAsync(wallet.Id, It.IsAny<CancellationToken>())).ReturnsAsync(wallet);
+        _walletRepository.Setup(r => r.GetSystemFundingAccountAsync(Currency.Usd, It.IsAny<CancellationToken>())).ReturnsAsync(fundingAccount);
+        _transactionRepository
+            .Setup(r => r.FindByIdempotencyKeyAsync(ownerId, "idem-key", It.IsAny<CancellationToken>()))
+            .ReturnsAsync(existing);
+
+        var handler = CreateHandler();
+        var command = new SimulateFundingCommand(ownerId, wallet.Id, 5_000, "idem-key");
+
+        await Assert.ThrowsAsync<IdempotencyKeyConflictException>(() => handler.HandleAsync(command, CancellationToken.None));
+
+        _transactionRepository.Verify(r => r.AddAsync(It.IsAny<Transaction>(), It.IsAny<CancellationToken>()), Times.Never);
+    }
+
+    [Fact]
+    public async Task HandleAsync_ConcurrentRaceOnInsert_MatchingParameters_ReturnsWinnersDto()
+    {
+        var ownerId = Guid.NewGuid();
+        var wallet = LedgerAccount.Open(ownerId, Currency.Usd, "My wallet");
+        var fundingAccount = LedgerAccount.OpenSystemFundingAccount(Currency.Usd, "USD Funding Source");
+        var winner = BuildFundingTransaction(ownerId, wallet.Id, fundingAccount.Id, 5_000, Currency.Usd);
+
+        _walletRepository.Setup(r => r.GetByIdAsync(wallet.Id, It.IsAny<CancellationToken>())).ReturnsAsync(wallet);
+        _walletRepository.Setup(r => r.GetSystemFundingAccountAsync(Currency.Usd, It.IsAny<CancellationToken>())).ReturnsAsync(fundingAccount);
+
+        // Pre-check finds nothing (this request thinks it's first)...
+        _transactionRepository
+            .SetupSequence(r => r.FindByIdempotencyKeyAsync(ownerId, "idem-key", It.IsAny<CancellationToken>()))
+            .ReturnsAsync((Transaction?)null)
+            .ReturnsAsync(winner); // ...but re-reading after the race shows the concurrent winner.
+
+        _transactionRepository
+            .Setup(r => r.AddAsync(It.IsAny<Transaction>(), It.IsAny<CancellationToken>()))
+            .ThrowsAsync(new IdempotencyKeyAlreadyUsedException());
+
+        var handler = CreateHandler();
+        var command = new SimulateFundingCommand(ownerId, wallet.Id, 5_000, "idem-key");
+
+        var dto = await handler.HandleAsync(command, CancellationToken.None);
+
+        Assert.NotNull(dto);
+        Assert.Equal(winner.Id, dto!.Id);
+    }
+
+    [Fact]
+    public async Task HandleAsync_ConcurrentRaceOnInsert_DifferentParameters_ThrowsConflict()
+    {
+        var ownerId = Guid.NewGuid();
+        var wallet = LedgerAccount.Open(ownerId, Currency.Usd, "My wallet");
+        var fundingAccount = LedgerAccount.OpenSystemFundingAccount(Currency.Usd, "USD Funding Source");
+        var winner = BuildFundingTransaction(ownerId, wallet.Id, fundingAccount.Id, 2_000, Currency.Usd); // different amount
+
+        _walletRepository.Setup(r => r.GetByIdAsync(wallet.Id, It.IsAny<CancellationToken>())).ReturnsAsync(wallet);
+        _walletRepository.Setup(r => r.GetSystemFundingAccountAsync(Currency.Usd, It.IsAny<CancellationToken>())).ReturnsAsync(fundingAccount);
+
+        _transactionRepository
+            .SetupSequence(r => r.FindByIdempotencyKeyAsync(ownerId, "idem-key", It.IsAny<CancellationToken>()))
+            .ReturnsAsync((Transaction?)null)
+            .ReturnsAsync(winner);
+
+        _transactionRepository
+            .Setup(r => r.AddAsync(It.IsAny<Transaction>(), It.IsAny<CancellationToken>()))
+            .ThrowsAsync(new IdempotencyKeyAlreadyUsedException());
+
+        var handler = CreateHandler();
+        var command = new SimulateFundingCommand(ownerId, wallet.Id, 5_000, "idem-key");
+
+        await Assert.ThrowsAsync<IdempotencyKeyConflictException>(() => handler.HandleAsync(command, CancellationToken.None));
     }
 }

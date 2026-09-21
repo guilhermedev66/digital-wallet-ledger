@@ -36,6 +36,7 @@ builder.Services.AddScoped<GetWalletByIdHandler>();
 builder.Services.AddScoped<SimulateFundingHandler>();
 builder.Services.AddScoped<GetWalletBalanceHandler>();
 builder.Services.AddScoped<TransferHandler>();
+builder.Services.AddScoped<GetWalletHistoryHandler>();
 
 var jwtSection = builder.Configuration.GetSection(JwtOptions.SectionName);
 var jwtSigningKey = jwtSection["SigningKey"]

@@ -43,4 +43,10 @@ public interface ITransactionRepository
     /// as AddAsync.
     /// </summary>
     Task<TransferPostResult> PostTransferIfSufficientFundsAsync(Guid sourceAccountId, long debitAmount, Transaction transaction, CancellationToken ct);
+
+    /// <summary>
+    /// Transactions with at least one entry against accountId, most recent first, paginated.
+    /// TotalCount is the total matching row count (for computing total pages), not the page size.
+    /// </summary>
+    Task<(IReadOnlyList<Transaction> Items, int TotalCount)> ListTransactionsForAccountAsync(Guid accountId, int page, int pageSize, CancellationToken ct);
 }

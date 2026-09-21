@@ -18,7 +18,8 @@ public sealed class WalletsController(
     GetWalletByIdHandler getWalletByIdHandler,
     SimulateFundingHandler simulateFundingHandler,
     GetWalletBalanceHandler getWalletBalanceHandler,
-    TransferHandler transferHandler) : ControllerBase
+    TransferHandler transferHandler,
+    GetWalletHistoryHandler getWalletHistoryHandler) : ControllerBase
 {
     [HttpPost]
     public async Task<ActionResult<WalletDto>> Create(CreateWalletRequest request, CancellationToken ct)
@@ -115,6 +116,22 @@ public sealed class WalletsController(
         catch (IdempotencyKeyConflictException ex)
         {
             return Conflict(new { message = ex.Message });
+        }
+    }
+
+    [HttpGet("{id:guid}/history")]
+    public async Task<ActionResult<PagedResult<TransactionDto>>> GetHistory(Guid id, [FromQuery] int page = 1, [FromQuery] int pageSize = 20, CancellationToken ct = default)
+    {
+        try
+        {
+            var history = await getWalletHistoryHandler.HandleAsync(new GetWalletHistoryQuery(GetOwnerUserId(), id, page, pageSize), ct);
+
+            // Same non-leak pattern as GetById/SimulateFunding/Transfer: not-found and not-yours are both 404.
+            return history is null ? NotFound() : Ok(history);
+        }
+        catch (ArgumentException ex)
+        {
+            return BadRequest(new { message = ex.Message });
         }
     }
 

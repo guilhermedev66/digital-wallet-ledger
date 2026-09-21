@@ -86,6 +86,22 @@ public sealed class EfTransactionRepository(WalletLedgerDbContext dbContext) : I
         return new TransferPostResult(TransferPostOutcome.Posted, transaction);
     }
 
+    public async Task<(IReadOnlyList<Transaction> Items, int TotalCount)> ListTransactionsForAccountAsync(Guid accountId, int page, int pageSize, CancellationToken ct)
+    {
+        var query = dbContext.Transactions.Where(t => t.Entries.Any(e => e.AccountId == accountId));
+
+        var totalCount = await query.CountAsync(ct);
+
+        var items = await query
+            .Include(t => t.Entries)
+            .OrderByDescending(t => t.PostedAtUtc)
+            .Skip((page - 1) * pageSize)
+            .Take(pageSize)
+            .ToListAsync(ct);
+
+        return (items, totalCount);
+    }
+
     private static bool IsUniqueIdempotencyViolation(DbUpdateException ex) =>
         ex.InnerException is PostgresException { SqlState: PostgresErrorCodes.UniqueViolation };
 }
