@@ -2,6 +2,7 @@ using System.IdentityModel.Tokens.Jwt;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using WalletLedger.Application.Dtos;
+using WalletLedger.Application.Exceptions;
 using WalletLedger.Application.Ledger;
 using WalletLedger.Application.Wallets;
 using WalletLedger.Domain.ValueObjects;
@@ -16,7 +17,8 @@ public sealed class WalletsController(
     ListMyWalletsHandler listMyWalletsHandler,
     GetWalletByIdHandler getWalletByIdHandler,
     SimulateFundingHandler simulateFundingHandler,
-    GetWalletBalanceHandler getWalletBalanceHandler) : ControllerBase
+    GetWalletBalanceHandler getWalletBalanceHandler,
+    TransferHandler transferHandler) : ControllerBase
 {
     [HttpPost]
     public async Task<ActionResult<WalletDto>> Create(CreateWalletRequest request, CancellationToken ct)
@@ -70,6 +72,10 @@ public sealed class WalletsController(
         {
             return BadRequest(new { message = ex.Message });
         }
+        catch (IdempotencyKeyConflictException ex)
+        {
+            return Conflict(new { message = ex.Message });
+        }
     }
 
     [HttpGet("{id:guid}/balance")]
@@ -77,6 +83,39 @@ public sealed class WalletsController(
     {
         var balance = await getWalletBalanceHandler.HandleAsync(new GetWalletBalanceQuery(GetOwnerUserId(), id), ct);
         return balance is null ? NotFound() : Ok(balance);
+    }
+
+    [HttpPost("{id:guid}/transfer")]
+    public async Task<ActionResult<TransactionDto>> Transfer(
+        Guid id, TransferRequest request, [FromHeader(Name = "Idempotency-Key")] string? idempotencyKey, CancellationToken ct)
+    {
+        if (string.IsNullOrWhiteSpace(idempotencyKey))
+        {
+            return BadRequest(new { message = "The 'Idempotency-Key' header is required." });
+        }
+
+        try
+        {
+            var transaction = await transferHandler.HandleAsync(
+                new TransferCommand(GetOwnerUserId(), id, request.DestinationWalletId, request.AmountMinorUnits, idempotencyKey), ct);
+
+            // Same non-leak pattern as GetById/SimulateFunding: not-found and not-yours (for
+            // the SOURCE wallet only) are both 404. A bad destination is a distinct 400 - see
+            // TransferHandler's doc comment for why that's not the same kind of leak.
+            return transaction is null ? NotFound() : Ok(transaction);
+        }
+        catch (ArgumentException ex)
+        {
+            return BadRequest(new { message = ex.Message });
+        }
+        catch (InsufficientFundsException ex)
+        {
+            return UnprocessableEntity(new { message = ex.Message });
+        }
+        catch (IdempotencyKeyConflictException ex)
+        {
+            return Conflict(new { message = ex.Message });
+        }
     }
 
     /// <summary>Owner id is always resolved from the authenticated caller's own JWT claims - never from client input.</summary>
@@ -95,3 +134,5 @@ public sealed class WalletsController(
 public sealed record CreateWalletRequest(string Currency, string? DisplayName);
 
 public sealed record SimulateFundingRequest(long AmountMinorUnits);
+
+public sealed record TransferRequest(Guid DestinationWalletId, long AmountMinorUnits);
