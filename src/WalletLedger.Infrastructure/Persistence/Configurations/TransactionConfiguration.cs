@@ -19,6 +19,13 @@ public sealed class TransactionConfiguration : IEntityTypeConfiguration<Transact
             .HasMaxLength(128)
             .IsRequired();
 
+        // The real guarantee behind every handler's idempotent-replay logic (see
+        // SimulateFundingHandler/TransferHandler) - a check-then-insert in application code
+        // always races against a concurrent identical request; this constraint is what makes
+        // that race safe instead of a double-post.
+        builder.HasIndex(t => new { t.RequestedByUserId, t.IdempotencyKey })
+            .IsUnique();
+
         builder.Property(t => t.Type)
             .HasConversion<string>()
             .HasMaxLength(20)

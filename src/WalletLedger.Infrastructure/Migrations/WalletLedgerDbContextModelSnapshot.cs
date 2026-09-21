@@ -120,6 +120,9 @@ namespace WalletLedger.Infrastructure.Migrations
 
                     b.HasKey("Id");
 
+                    b.HasIndex("RequestedByUserId", "IdempotencyKey")
+                        .IsUnique();
+
                     b.ToTable("Transactions", (string)null);
                 });
 

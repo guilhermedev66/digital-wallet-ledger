@@ -12,7 +12,7 @@ using WalletLedger.Infrastructure.Persistence;
 namespace WalletLedger.Infrastructure.Migrations
 {
     [DbContext(typeof(WalletLedgerDbContext))]
-    [Migration("20260921192918_InitialCreate")]
+    [Migration("20260921193718_InitialCreate")]
     partial class InitialCreate
     {
         /// <inheritdoc />
@@ -122,6 +122,9 @@ namespace WalletLedger.Infrastructure.Migrations
                         .HasColumnType("character varying(20)");
 
                     b.HasKey("Id");
+
+                    b.HasIndex("RequestedByUserId", "IdempotencyKey")
+                        .IsUnique();
 
                     b.ToTable("Transactions", (string)null);
                 });

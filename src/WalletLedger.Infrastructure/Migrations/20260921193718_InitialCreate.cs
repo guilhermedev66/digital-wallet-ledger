@@ -103,6 +103,12 @@ namespace WalletLedger.Infrastructure.Migrations
                 column: "TransactionId");
 
             migrationBuilder.CreateIndex(
+                name: "IX_Transactions_RequestedByUserId_IdempotencyKey",
+                table: "Transactions",
+                columns: new[] { "RequestedByUserId", "IdempotencyKey" },
+                unique: true);
+
+            migrationBuilder.CreateIndex(
                 name: "IX_Users_Email",
                 table: "Users",
                 column: "Email",

@@ -1,7 +1,9 @@
 using WalletLedger.Application.Abstractions;
 using WalletLedger.Application.Dtos;
+using WalletLedger.Application.Exceptions;
 using WalletLedger.Application.Mapping;
 using WalletLedger.Domain.Entities;
+using WalletLedger.Domain.ValueObjects;
 
 namespace WalletLedger.Application.Ledger;
 
@@ -44,6 +46,14 @@ public sealed class SimulateFundingHandler(IWalletRepository walletRepository, I
         var fundingAccount = await walletRepository.GetSystemFundingAccountAsync(wallet.Currency, ct)
             ?? throw new InvalidOperationException($"No system funding account is configured for currency '{wallet.Currency}'.");
 
+        var existing = await transactionRepository.FindByIdempotencyKeyAsync(command.OwnerUserId, command.IdempotencyKey, ct);
+        if (existing is not null)
+        {
+            return MatchesThisFunding(existing, wallet.Id, fundingAccount.Id, command.AmountMinorUnits, wallet.Currency)
+                ? existing.ToDto()
+                : throw new IdempotencyKeyConflictException();
+        }
+
         var transaction = Transaction.Post(
             command.OwnerUserId,
             command.IdempotencyKey,
@@ -53,8 +63,27 @@ public sealed class SimulateFundingHandler(IWalletRepository walletRepository, I
                 new LedgerEntryLine(fundingAccount.Id, LedgerEntryDirection.Credit, command.AmountMinorUnits, wallet.Currency),
             ]);
 
-        await transactionRepository.AddAsync(transaction, ct);
+        try
+        {
+            await transactionRepository.AddAsync(transaction, ct);
+        }
+        catch (IdempotencyKeyAlreadyUsedException)
+        {
+            // Same race as TransferHandler: a concurrent identical request won between our
+            // pre-check and this insert. The DB constraint is the real guarantee.
+            var raced = await transactionRepository.FindByIdempotencyKeyAsync(command.OwnerUserId, command.IdempotencyKey, ct)
+                ?? throw new InvalidOperationException("Idempotency conflict reported but no matching transaction was found on re-read.");
+
+            return MatchesThisFunding(raced, wallet.Id, fundingAccount.Id, command.AmountMinorUnits, wallet.Currency)
+                ? raced.ToDto()
+                : throw new IdempotencyKeyConflictException();
+        }
 
         return transaction.ToDto();
     }
+
+    private static bool MatchesThisFunding(Transaction existing, Guid walletId, Guid fundingAccountId, long amountMinorUnits, Currency currency) =>
+        existing.Type == TransactionType.SimulatedFunding
+        && existing.HasMatchingEntry(walletId, LedgerEntryDirection.Debit, amountMinorUnits, currency)
+        && existing.HasMatchingEntry(fundingAccountId, LedgerEntryDirection.Credit, amountMinorUnits, currency);
 }
