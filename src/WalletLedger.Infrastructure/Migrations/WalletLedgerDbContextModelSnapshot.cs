@@ -52,6 +52,10 @@ namespace WalletLedger.Infrastructure.Migrations
 
                     b.HasIndex("OwnerUserId");
 
+                    b.HasIndex("Type", "Currency")
+                        .IsUnique()
+                        .HasFilter("\"Type\" = 'SystemFunding'");
+
                     b.ToTable("LedgerAccounts", (string)null);
                 });
 

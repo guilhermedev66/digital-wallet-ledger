@@ -79,26 +79,36 @@ public sealed class Transaction
         long totalDebits = 0;
         long totalCredits = 0;
 
-        checked
+        try
         {
-            foreach (var line in lines)
+            checked
             {
-                // LedgerEntry.Create (below) also rejects a non-positive amount - checked here
-                // too so the sums below can't be corrupted by a bad value before that runs.
-                if (line.AmountMinorUnits <= 0)
+                foreach (var line in lines)
                 {
-                    throw new ArgumentException("A ledger entry amount must be a positive number of minor units.", nameof(lines));
-                }
+                    // LedgerEntry.Create (below) also rejects a non-positive amount - checked
+                    // here too so the sums below can't be corrupted by a bad value first.
+                    if (line.AmountMinorUnits <= 0)
+                    {
+                        throw new ArgumentException("A ledger entry amount must be a positive number of minor units.", nameof(lines));
+                    }
 
-                if (line.Direction == LedgerEntryDirection.Debit)
-                {
-                    totalDebits += line.AmountMinorUnits;
-                }
-                else
-                {
-                    totalCredits += line.AmountMinorUnits;
+                    if (line.Direction == LedgerEntryDirection.Debit)
+                    {
+                        totalDebits += line.AmountMinorUnits;
+                    }
+                    else
+                    {
+                        totalCredits += line.AmountMinorUnits;
+                    }
                 }
             }
+        }
+        catch (OverflowException ex)
+        {
+            // Callers only ever see ArgumentException from Post - an OverflowException
+            // escaping here would be an undocumented, inconsistent exception type for what
+            // is still fundamentally invalid input (amounts too large to sum safely).
+            throw new ArgumentException("Ledger entry amounts are too large to sum safely.", nameof(lines), ex);
         }
 
         if (totalDebits == 0 || totalCredits == 0)

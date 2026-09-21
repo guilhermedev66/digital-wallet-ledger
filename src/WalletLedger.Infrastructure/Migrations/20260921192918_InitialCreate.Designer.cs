@@ -12,7 +12,7 @@ using WalletLedger.Infrastructure.Persistence;
 namespace WalletLedger.Infrastructure.Migrations
 {
     [DbContext(typeof(WalletLedgerDbContext))]
-    [Migration("20260921191719_InitialCreate")]
+    [Migration("20260921192918_InitialCreate")]
     partial class InitialCreate
     {
         /// <inheritdoc />
@@ -54,6 +54,10 @@ namespace WalletLedger.Infrastructure.Migrations
                     b.HasKey("Id");
 
                     b.HasIndex("OwnerUserId");
+
+                    b.HasIndex("Type", "Currency")
+                        .IsUnique()
+                        .HasFilter("\"Type\" = 'SystemFunding'");
 
                     b.ToTable("LedgerAccounts", (string)null);
                 });

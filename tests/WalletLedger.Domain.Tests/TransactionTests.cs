@@ -123,6 +123,22 @@ public class TransactionTests
     }
 
     [Fact]
+    public void Post_SummingEntriesOverflows_ThrowsArgumentException_NotOverflowException()
+    {
+        // Multiple debits close to long.MaxValue must overflow the checked sum and come out
+        // as the same ArgumentException type every other invalid-input path throws - a raw
+        // OverflowException escaping here would be an inconsistent, undocumented surprise
+        // for callers who only expect ArgumentException from Post.
+        var half = long.MaxValue / 2;
+
+        var ex = Assert.Throws<ArgumentException>(() => Transaction.Post(
+            RequesterId, IdempotencyKey, TransactionType.Transfer,
+            [Debit(AccountA, half), Debit(AccountA, half), Debit(AccountA, half), Credit(AccountB, half)]));
+
+        Assert.IsType<OverflowException>(ex.InnerException);
+    }
+
+    [Fact]
     public void Post_NegativeDebitOffsettingInflatedCredit_StillRejected()
     {
         // Attempt: a negative debit plus an oversized credit that "sums to balance" under

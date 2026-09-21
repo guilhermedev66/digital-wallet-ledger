@@ -86,6 +86,13 @@ namespace WalletLedger.Infrastructure.Migrations
                 column: "OwnerUserId");
 
             migrationBuilder.CreateIndex(
+                name: "IX_LedgerAccounts_Type_Currency",
+                table: "LedgerAccounts",
+                columns: new[] { "Type", "Currency" },
+                unique: true,
+                filter: "\"Type\" = 'SystemFunding'");
+
+            migrationBuilder.CreateIndex(
                 name: "IX_LedgerEntries_AccountId",
                 table: "LedgerEntries",
                 column: "AccountId");
