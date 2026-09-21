@@ -61,6 +61,25 @@ public sealed class EfTransactionRepository(WalletLedgerDbContext dbContext) : I
         await dbContext.Database.ExecuteSqlInterpolatedAsync(
             $"""SELECT 1 FROM "LedgerAccounts" WHERE "Id" = {sourceAccountId} FOR UPDATE""", ct);
 
+        // Idempotency check happens here - under the lock, before the balance check - not
+        // just as a side effect of the unique-constraint violation on insert below. If the
+        // balance check ran first: two concurrent identical requests (same key) against a
+        // near-exhausted balance would let the winner's commit push the balance below the
+        // transfer amount before the loser re-reads it, so the loser would see
+        // InsufficientFunds for what was actually an already-successful replay of its own
+        // exact request - a client retrying on that false failure with a NEW key would
+        // genuinely double-transfer. Found in review (M3 revalidation) - the existing
+        // concurrent-replay test funded well above the debit amount and never exercised the
+        // near-limit case where this branch actually matters.
+        var alreadyPosted = await dbContext.Transactions
+            .AnyAsync(t => t.RequestedByUserId == transaction.RequestedByUserId && t.IdempotencyKey == transaction.IdempotencyKey, ct);
+
+        if (alreadyPosted)
+        {
+            await dbTransaction.RollbackAsync(ct);
+            throw new IdempotencyKeyAlreadyUsedException();
+        }
+
         var currentBalance = await GetAccountBalanceAsync(sourceAccountId, ct);
 
         if (currentBalance < debitAmount)

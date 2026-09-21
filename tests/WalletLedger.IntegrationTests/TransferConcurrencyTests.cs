@@ -139,6 +139,43 @@ public sealed class TransferConcurrencyTests(PostgresContainerFixture postgres)
     }
 
     [Fact]
+    public async Task ConcurrentIdenticalReplay_NearExhaustedBalance_BothSucceed_NeverInsufficientFunds()
+    {
+        // Regression test for a real bug found in M3 review: PostTransferIfSufficientFundsAsync
+        // used to check the balance BEFORE checking for an existing transaction under the same
+        // idempotency key. Funding comfortably above the debit amount (as the sibling test
+        // above does) never exercises the failure: the second request's balance check still
+        // passed, so it fell through to the insert and hit the unique-constraint race path
+        // instead. Funding to EXACTLY the debit amount forces the second request's post-lock
+        // balance read to see 50 (250 - 200, after the winner already committed) - if the
+        // idempotency check didn't run first, this would incorrectly return 422 for what was
+        // actually an already-successful replay of the winner's own request.
+        using var client = CreateClient();
+        Authorize(client, await RegisterAndLoginAsync(client, UniqueEmail()));
+
+        var source = await CreateWalletAsync(client);
+        var destination = await CreateWalletAsync(client);
+        await FundAsync(client, source, 250);
+
+        var key = Guid.NewGuid().ToString();
+
+        var results = await Task.WhenAll(
+            TransferAsync(client, source, destination, 200, key),
+            TransferAsync(client, source, destination, 200, key));
+
+        var statusCodes = results.Select(r => r.StatusCode).ToList();
+        Assert.DoesNotContain(HttpStatusCode.UnprocessableEntity, statusCodes);
+        Assert.All(results, r => Assert.Equal(HttpStatusCode.OK, r.StatusCode));
+
+        var tx1 = await results[0].Content.ReadFromJsonAsync<TransactionDto>();
+        var tx2 = await results[1].Content.ReadFromJsonAsync<TransactionDto>();
+        Assert.Equal(tx1!.Id, tx2!.Id);
+
+        Assert.Equal(50, await GetBalanceAsync(client, source));
+        Assert.Equal(200, await GetBalanceAsync(client, destination));
+    }
+
+    [Fact]
     public async Task SequentialReplay_SameKeySameParameters_ReturnsOriginal_DebitedOnce()
     {
         using var client = CreateClient();
