@@ -1,0 +1,32 @@
+# Project Memory
+
+Only what's expensive to relearn. See ROADMAP.md for status, ARCHITECTURE.md for the
+financial/domain model and why.
+
+## Environment reality (2026-09-21)
+
+- This WSL distro has no `docker` CLI (Docker Desktop's WSL integration isn't
+  enabled for it). `docker-compose` / Testcontainers work in CI but not locally
+  until the user enables the integration. Don't assume Docker is usable here
+  without checking first.
+- `dotnet new sln` on this SDK (10.0.401) generates `.slnx`, not `.sln`. Build with
+  `dotnet build WalletLedger.slnx`.
+
+## Multi-agent topology (actual, not aspirational)
+
+The original build brief assumed a Maestro roster with named specialist roles
+(Codex Backend, Codex QA, Antigravity, Security QA, a Shell-only worker). On
+inspection, none of that existed: `ListAgents` showed two peer sessions, both
+plain Claude Code / Sonnet 5, no pre-assigned roles, no Codex or Antigravity
+connected (a leftover `.codex/config.toml` in the duplicated workspace is not a
+live worker). Roles were assigned ad hoc based on what's real — see whichever
+session picked up backend vs. frontend/QA at the time; check `ListAgents` fresh
+each session rather than trusting this note to stay current on *who*, only on
+*the fact that roles must be verified, never assumed*.
+
+## Architecture decisions
+
+- No generic `IRepository<T>`. See ARCHITECTURE.md "Why not Repository-per-aggregate".
+- Balance is always derived from `LedgerEntry` rows, never a mutable column. This is
+  the non-negotiable center of the project — don't let a future milestone add a
+  shortcut mutable balance for convenience.
