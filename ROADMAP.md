@@ -57,7 +57,24 @@ Status legend: `[ ]` not started, `[~]` in progress, `[x]` done.
 
 ## M7 — Security / production hardening / deployment
 - [ ] Full security gate pass (see CLAUDE.md), dependency + secret scan clean.
-- [ ] Rate limiting, CORS, security headers, prod error handling (no stack traces to client).
+- [x] Rate limiting, CORS, security headers, prod error handling (no stack traces to client) -
+  fixing a read-only audit's findings (handoff from a peer session, not a fresh audit this
+  session): rate limiting on `/api/auth/login`/`register` (`[EnableRateLimiting("auth")]`,
+  fixed-window, 10/min per remote IP - `Microsoft.AspNetCore.RateLimiting`, no extra NuGet
+  dependency), a global exception handler (`UseExceptionHandler` + `Results.Problem()` -
+  RFC 7807 body, never the exception's Message/StackTrace), a restrictive CORS policy
+  (`Cors:AllowedOrigins` from config, empty/closed in production until a real deploy URL
+  exists, never `AllowAnyOrigin()`/credentials), and two baseline response headers
+  (`X-Content-Type-Options: nosniff`, `Referrer-Policy: no-referrer`). `/api/auth/register`'s
+  409-on-duplicate-email (enumerable, unlike login's generic 401) was reviewed and kept
+  deliberately - see MEMORY.md for the reasoning. All four verified against the real running
+  app (not just unit tests) with `dotnet run` + `curl.exe`, since Postgres isn't reachable
+  locally either way - found and fixed a real gap doing this: headers set by earlier
+  middleware were silently dropped on a 500 response because `UseExceptionHandler` clears the
+  response before re-executing its branch; confirmed fixed live before writing the regression
+  test. 142+ unit tests still green, 0 build warnings. Integration regression tests written
+  for all four (rate limit 429, clean ProblemDetails + headers survive an exception, CORS
+  allow/deny), same Docker-gated status as the rest of this project - not run locally.
 - [ ] Deployment; production security smoke test against the real deployed URL.
 
 ## Known environment blockers (see MEMORY.md for detail)

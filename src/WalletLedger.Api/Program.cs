@@ -1,5 +1,7 @@
 using System.Text;
+using System.Threading.RateLimiting;
 using Microsoft.AspNetCore.Authentication.JwtBearer;
+using Microsoft.AspNetCore.RateLimiting;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.IdentityModel.Tokens;
 using WalletLedger.Application.Abstractions;
@@ -15,6 +17,39 @@ var builder = WebApplication.CreateBuilder(args);
 
 builder.Services.AddControllers();
 builder.Services.AddOpenApi();
+
+// RFC 7807 ProblemDetails for every error response, including the global exception handler
+// below - never an exception's message or stack trace, see that handler's own comment.
+builder.Services.AddProblemDetails();
+
+// Anonymous credential endpoints only (see AuthController's [EnableRateLimiting("auth")]) -
+// unlimited login/register attempts today would allow credential stuffing / password
+// guessing. Partitioned by remote IP so one abusive client can't exhaust everyone else's
+// quota; a generous-enough window that legitimate retries (e.g. a mistyped password) aren't
+// punished. Not a distributed limiter - single-instance portfolio deployment, see MEMORY.md.
+builder.Services.AddRateLimiter(options =>
+{
+    options.RejectionStatusCode = StatusCodes.Status429TooManyRequests;
+    options.AddPolicy("auth", httpContext =>
+        RateLimitPartition.GetFixedWindowLimiter(
+            partitionKey: httpContext.Connection.RemoteIpAddress?.ToString() ?? "unknown",
+            factory: _ => new FixedWindowRateLimiterOptions
+            {
+                PermitLimit = 10,
+                Window = TimeSpan.FromMinutes(1),
+                QueueLimit = 0,
+            }));
+});
+
+// Restrictive by default (see MEMORY.md) - only origins explicitly listed in
+// Cors:AllowedOrigins may call this API cross-origin; an empty/unconfigured list (the
+// production default - no real deploy URL exists yet) means no browser origin is allowed at
+// all, never AllowAnyOrigin().
+var allowedOrigins = builder.Configuration.GetSection("Cors:AllowedOrigins").Get<string[]>() ?? [];
+builder.Services.AddCors(options =>
+{
+    options.AddPolicy("frontend", policy => policy.WithOrigins(allowedOrigins).AllowAnyHeader().AllowAnyMethod());
+});
 
 builder.Services.AddDbContext<WalletLedgerDbContext>(options =>
     options.UseNpgsql(builder.Configuration.GetConnectionString("Default")
@@ -74,7 +109,43 @@ if (app.Environment.IsDevelopment())
     app.MapOpenApi();
 }
 
+// Minimal, framework-provided-equivalent baseline headers for a JSON API - no CSP (this API
+// never serves HTML, and a CSP tuned for a frontend that doesn't exist here yet would be
+// guesswork) and no extra NuGet dependency for two headers. Applied explicitly in BOTH the
+// normal pipeline below and inside the exception handler branch further down, not just placed
+// early and left to flow through - ExceptionHandlerMiddleware clears the response (including
+// any headers already set) before re-executing its branch on an unhandled exception, so a 500
+// response would otherwise ship without these. Found by actually running the app and diffing
+// headers on a normal 401 vs. a forced 500 - the 401 had them, the 500 didn't, until this was
+// made explicit in both places.
+app.Use(async (context, next) =>
+{
+    AddSecurityHeaders(context);
+    await next();
+});
+
+// First in the pipeline so it catches an unhandled exception from anything downstream.
+// Results.Problem() with no arguments is deliberately the generic RFC 7807 body ASP.NET Core
+// ships (status 500, a fixed generic title/detail) - never the exception's own Message or
+// StackTrace, which could disclose internals to a client. See GlobalExceptionHandlerTests.
+app.UseExceptionHandler(exceptionHandlerApp =>
+    exceptionHandlerApp.Run(async context =>
+    {
+        AddSecurityHeaders(context);
+        await Results.Problem().ExecuteAsync(context);
+    }));
+
+// UseHsts excludes localhost/loopback automatically, but still gate on non-Development so a
+// local `dotnet run` over plain HTTP is never told to force HTTPS on itself.
+if (!app.Environment.IsDevelopment())
+{
+    app.UseHsts();
+}
+
 app.UseHttpsRedirection();
+
+app.UseCors("frontend");
+app.UseRateLimiter();
 
 app.UseAuthentication();
 app.UseAuthorization();
@@ -96,6 +167,12 @@ catch (Exception ex)
 }
 
 app.Run();
+
+static void AddSecurityHeaders(HttpContext context)
+{
+    context.Response.Headers.Append("X-Content-Type-Options", "nosniff");
+    context.Response.Headers.Append("Referrer-Policy", "no-referrer");
+}
 
 // One SystemFunding LedgerAccount per supported currency, created out-of-band at boot -
 // never reachable through any client-facing endpoint (see LedgerAccount.OpenSystemFundingAccount).

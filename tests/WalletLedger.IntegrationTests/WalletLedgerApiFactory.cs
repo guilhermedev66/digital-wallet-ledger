@@ -7,7 +7,7 @@ using WalletLedger.Infrastructure.Persistence;
 
 namespace WalletLedger.IntegrationTests;
 
-public sealed class WalletLedgerApiFactory(string connectionString) : WebApplicationFactory<Program>
+public sealed class WalletLedgerApiFactory(string connectionString, Action<IServiceCollection>? configureTestServices = null) : WebApplicationFactory<Program>
 {
     protected override void ConfigureWebHost(IWebHostBuilder builder)
     {
@@ -21,6 +21,10 @@ public sealed class WalletLedgerApiFactory(string connectionString) : WebApplica
             using var scope = provider.CreateScope();
             var dbContext = scope.ServiceProvider.GetRequiredService<WalletLedgerDbContext>();
             dbContext.Database.Migrate();
+
+            // Applied last so a test-provided override (e.g. a throwing fake, for the global
+            // exception handler regression test) wins over the app's own registrations above.
+            configureTestServices?.Invoke(services);
         });
     }
 }

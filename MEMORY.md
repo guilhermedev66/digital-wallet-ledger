@@ -170,3 +170,32 @@ supposed to mirror faithfully.
   else's wallet without their consent, just by being a party to the original transfer
   - a real authorization gap, not a hypothetical one. See
   `ReverseTransactionHandler.HandleAsync`'s doc comment for the full reasoning.
+- `ExceptionHandlerMiddleware` (M7) clears the response - including headers already set
+  by earlier middleware - before re-executing its branch on an unhandled exception. A
+  header (or anything else) added via `app.Use(...)` earlier in the pipeline does NOT
+  automatically survive on a 500 response just because it's registered first; it has to
+  be set again inside the `UseExceptionHandler` branch itself (`AddSecurityHeaders` is
+  now called from both places in `Program.cs`). Found by actually running the app and
+  diffing headers on a normal 401 vs. a forced 500, not by reasoning about middleware
+  order alone - the "wraps everything, so it should apply" intuition is wrong here.
+- `/api/auth/register` returns 409 with an "email already exists" message (enumerable),
+  while `/api/auth/login` returns a generic 401 for both wrong-password and
+  unknown-email (never enumerable) - a deliberate, reviewed asymmetry (M7), not an
+  inconsistency to fix. Registration-time email enumeration is standard, low-value-to-attacker
+  UX (most real signup flows do this) and blocking it would hurt legitimate "why didn't
+  my registration work" UX for no real security gain on a no-real-money portfolio demo;
+  login-time enumeration (confirming a specific email HAS an account, useful for credential
+  stuffing) is the one this project actually guards against, and does. Don't "fix" the
+  register asymmetry without re-deciding this tradeoff deliberately.
+- Rate limiting (M7) is `[EnableRateLimiting("auth")]` on `AuthController` only (fixed
+  window, 10 requests/min, partitioned by remote IP) - not a global limiter. Adding a
+  global limiter later needs to account for legitimate same-IP burst traffic on
+  wallet/transfer endpoints (e.g. the concurrency integration tests fire many requests
+  from one client) - don't copy the "auth" policy's numbers onto a global one without
+  reconsidering them.
+- CORS (M7): `Cors:AllowedOrigins` in config, empty by default (production has no real
+  deploy URL yet, so no browser origin is allowed at all) - `http://localhost:5173`
+  (Vite's default dev port) is allowlisted only in `appsettings.Development.json`. When
+  a real frontend URL is deployed (M7's remaining "Deployment" item), add it to
+  `Cors:AllowedOrigins` in the production config/environment, never switch to
+  `AllowAnyOrigin()`.

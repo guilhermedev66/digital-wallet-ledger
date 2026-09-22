@@ -1,5 +1,6 @@
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
+using Microsoft.AspNetCore.RateLimiting;
 using WalletLedger.Application.Exceptions;
 using WalletLedger.Application.Identity;
 
@@ -8,6 +9,7 @@ namespace WalletLedger.Api.Controllers;
 [ApiController]
 [Route("api/auth")]
 [AllowAnonymous]
+[EnableRateLimiting("auth")]
 public sealed class AuthController(RegisterUserHandler registerUserHandler, LoginHandler loginHandler) : ControllerBase
 {
     [HttpPost("register")]
