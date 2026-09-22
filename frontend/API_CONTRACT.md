@@ -33,7 +33,22 @@ POST /api/wallets/:id/transfer      (:id is the SOURCE wallet)
   headers: Idempotency-Key
   body:    { destinationWalletId, amountMinorUnits }                -> TransactionDto | 400 | 404 | 409 | 422
 
-GET  /api/wallets/:id/history?page=&pageSize=                        -> PagedResult<TransactionDto> | 404
+GET  /api/wallets/:id/history?page=&pageSize=&fromUtc=&toUtc=&type=  -> PagedResult<TransactionDto> | 404
+  (fromUtc/toUtc/type are optional filters added in M4; type is "Transfer" |
+  "SimulatedFunding" | "Reversal")
+
+POST /api/wallets/:id/transactions/:transactionId/reverse   (M4 - not yet used by the M5 UI)
+  headers: Idempotency-Key
+  body:    (none)                                                    -> TransactionDto | 400 | 404 | 409 | 422
+  Self-service (caller's own JWT) only works when the reversal debits the
+  CALLER's own wallet (e.g. voluntarily returning a transfer you received, or
+  undoing your own SimulatedFunding) - reversing a transaction the other way
+  (clawing funds back out of someone else's wallet) needs the admin role and
+  gets the same 404 as any other "not yours" case otherwise. See MEMORY.md
+  "Reversal authorization".
+
+GET  /api/wallets/:id/reconciliation    (M4 - not yet used by the M5 UI)   -> ReconciliationReportDto | 404
+GET  /api/reconciliation                (M4, admin-only, 404 for non-admin) -> ReconciliationReportDto | 404
 ```
 
 There is no `POST /api/transfers`, no cursor-based pagination, and no
@@ -59,13 +74,14 @@ WalletBalanceDto {
 
 TransactionDto {
   id: string
-  type: "Transfer" | "SimulatedFunding"   // "Reversal" once M4 lands
+  type: "Transfer" | "SimulatedFunding" | "Reversal"
   postedAtUtc: string
+  reversalOfTransactionId: string | null   // set only on a Reversal (M4)
   entries: LedgerEntryDto[]
 }
-// No idempotencyKey, status, reversalOfTransactionId, or memo in the response.
-// Posting is atomic/synchronous (see ARCHITECTURE.md) - a 200 response is already
-// posted, so there is no server-side "Pending" status to model client-side either.
+// No idempotencyKey, status, or memo in the response. Posting is atomic/synchronous
+// (see ARCHITECTURE.md) - a 200 response is already posted, so there is no
+// server-side "Pending" status to model client-side either.
 
 LedgerEntryDto {
   accountId: string
@@ -79,6 +95,29 @@ PagedResult<T> {
   page: number
   pageSize: number
   totalCount: number
+}
+
+// M4, not yet used by the M5 UI (reconciliation view is M6 scope):
+AccountReconciliationDto {
+  accountId: string
+  accountType: string
+  currency: "USD" | "BRL"
+  projectedBalanceMinorUnits: number
+  recomputedBalanceMinorUnits: number
+  driftMinorUnits: number
+  isBalanced: boolean
+}
+UnbalancedTransactionDto {
+  transactionId: string
+  currency: "USD" | "BRL"
+  totalDebitMinorUnits: number
+  totalCreditMinorUnits: number
+}
+ReconciliationReportDto {
+  generatedAtUtc: string
+  accounts: AccountReconciliationDto[]
+  unbalancedTransactions: UnbalancedTransactionDto[]
+  isClean: boolean
 }
 ```
 

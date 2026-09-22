@@ -191,6 +191,7 @@ export class MockApiClient implements ApiClient {
       id: id('tx'),
       postedAtUtc: new Date().toISOString(),
       type,
+      reversalOfTransactionId: null,
       entries,
     }
     this.db.transactions.push(tx)

@@ -1,7 +1,6 @@
 export type Currency = 'USD' | 'BRL'
 
-// 'Reversal' will be added once M4 lands and the backend TransactionDto actually returns it.
-export type TransactionType = 'Transfer' | 'SimulatedFunding'
+export type TransactionType = 'Transfer' | 'SimulatedFunding' | 'Reversal'
 
 export type EntryDirection = 'Debit' | 'Credit'
 
@@ -43,6 +42,10 @@ export interface Transaction {
   id: string
   type: TransactionType
   postedAtUtc: string
+  // Set only on a Reversal (M4) - null otherwise. Reversal itself has no UI in M5 yet
+  // (POST /api/wallets/:id/transactions/:transactionId/reverse exists on the backend -
+  // see API_CONTRACT.md - but building the UI for it is M6 scope).
+  reversalOfTransactionId: string | null
   entries: LedgerEntry[]
 }
 
