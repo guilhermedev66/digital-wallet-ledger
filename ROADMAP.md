@@ -81,7 +81,9 @@ Status legend: `[ ]` not started, `[~]` in progress, `[x]` done.
   `Usd=0` is the bitwise-OR identity - only combinations that land on an undefined numeric
   value get caught that way. Shipped an explicit comma-rejection instead (`TryParseDefinedEnum`
   in `WalletsController.cs`), verified against both the originally-cited case and the one that
-  would've slipped through. 143 unit tests green, 0 build warnings.
+  would've slipped through. 143 unit tests green, 0 build warnings. Independently re-confirmed
+  by the orchestrating session: solution rebuilt clean, 53+90 unit tests independently re-run,
+  both diffs reviewed line-by-line.
 - [x] Rate limiting, CORS, security headers, prod error handling (no stack traces to client) -
   fixing a read-only audit's findings (handoff from a peer session, not a fresh audit this
   session): rate limiting on `/api/auth/login`/`register` (`[EnableRateLimiting("auth")]`,
