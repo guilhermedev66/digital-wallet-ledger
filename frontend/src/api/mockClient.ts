@@ -178,7 +178,37 @@ export class MockApiClient implements ApiClient {
     const existingId = this.db.idempotencyIndex[idempotencyIndexKey]
     if (existingId) {
       const existing = this.db.transactions.find((t) => t.id === existingId)
-      if (existing) return existing
+      if (existing) {
+        // Same-key replay must match the original request's parameters exactly - a
+        // different type/entries/reversal target under a reused key is a conflict, never
+        // silently applied to the original result. Matches the real backend's
+        // MatchesThisTransfer/MatchesThisFunding/MatchesThisReversal checks (see
+        // TransferHandler.cs, SimulateFundingHandler.cs, ReverseTransactionHandler.cs) -
+        // found missing here by independent review, not exercised by the current UI
+        // (every call site generates a fresh crypto.randomUUID() key), but a real
+        // divergence from the documented idempotency contract in MEMORY.md otherwise.
+        const matches =
+          existing.type === type &&
+          existing.reversalOfTransactionId === reversalOfTransactionId &&
+          existing.entries.length === entries.length &&
+          entries.every((e) =>
+            existing.entries.some(
+              (ee) =>
+                ee.accountId === e.accountId &&
+                ee.direction === e.direction &&
+                ee.amountMinorUnits === e.amountMinorUnits &&
+                ee.currency === e.currency,
+            ),
+          )
+        if (!matches) {
+          throw new ApiError(
+            'This idempotency key was already used with different parameters.',
+            409,
+            'idempotency_conflict',
+          )
+        }
+        return existing
+      }
     }
 
     const debits = entries

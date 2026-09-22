@@ -48,6 +48,14 @@ portfolio demo. Revisit if a future milestone adds any raw-HTML/markdown renderi
 path that could bypass JSX escaping - that's the condition that would turn this into
 a real vulnerability, not just an architectural tradeoff.
 
+`mockClient.ts`'s shared `postTransaction` helper (funds/transfers/reversals) now verifies a
+replayed idempotency key's parameters actually match the cached result before returning it,
+throwing a 409 conflict otherwise - found missing by independent review (2026-09-22) and
+fixed same day. Not reachable through the current UI (every call site generates a fresh
+`crypto.randomUUID()` key per action), but was a real divergence from the documented
+idempotency-conflict contract (see "Idempotency replay semantics" below) that the mock is
+supposed to mirror faithfully.
+
 ## Architecture decisions
 
 - No generic `IRepository<T>`. See ARCHITECTURE.md "Why not Repository-per-aggregate".
