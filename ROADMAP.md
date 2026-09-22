@@ -34,6 +34,7 @@ Status legend: `[ ]` not started, `[~]` in progress, `[x]` done.
 - [x] Concurrency integration tests: 7 adversarial scenarios (draining past balance, concurrent identical replay at comfortable and at exactly-exhausted balance, sequential replay match/conflict, replay after a failed attempt, unrelated-transfers-don't-serialize) - written and reviewed line-by-line, same Docker-gated status as the rest of this project.
 - [x] Transfer history endpoint - `GET /api/wallets/{id}/history?page=&pageSize=`, paginated, ownership-scoped.
 - [x] Financial-correctness pass on M3 (1 real bug found and fixed: idempotency check was running after the balance check inside PostTransferIfSufficientFundsAsync instead of before, so a concurrent identical replay against a near-exhausted post-debit balance got a false InsufficientFunds instead of being recognized as a replay - see MEMORY.md and git history (commit 018817b) rather than duplicated here). Revalidated: diff independently reviewed, fix confirmed correct, 53+57 unit tests independently re-run.
+- [x] Second post-hoc financial-correctness fix (found while resuming the project, not part of the original M3 pass): `TransferHandler` had the source/destination entry directions inverted - see MEMORY.md "Balance sign convention" for the full account. Fixed, unit tests corrected, 53+57 unit tests re-run green. This was invisible to every test that ran locally (mocked unit tests just encoded whatever the code did; the Docker-gated integration tests had the correct expected balances all along but have still never executed against real Postgres) - a concrete argument for actually running the integration suite once Docker is available here, not just trusting that it was written carefully.
 
 ## M4 — Reversals / reconciliation / activity
 - [ ] Compensating reversal transactions (no mutation/deletion of posted history).
@@ -41,9 +42,11 @@ Status legend: `[ ]` not started, `[~]` in progress, `[x]` done.
 - [ ] Activity/history filtering + pagination.
 
 ## M5 — Frontend core experience
-- [ ] Auth flows (register/login), wallet dashboard, transfer UX, activity list.
-- [ ] Loading/empty/error/disabled/success states; responsive (desktop/tablet/~320px); keyboard + a11y basics.
-- [ ] Implements the direction chosen in DESIGN_DIRECTION.md.
+- [x] Auth flows (register/login), wallet dashboard, transfer UX, activity list - built against Direction 1 (DESIGN_DIRECTION.md), using `src/api/mockClient.ts` (localStorage-backed) until wired to the real backend.
+- [x] API contract reconciled against the real M1-M3 backend (was built against a pre-backend guess that turned out wrong on nearly every endpoint shape - see frontend/API_CONTRACT.md's header for specifics: wrong routes, wrong request/response bodies, idempotency key assumed to be a body field instead of an `Idempotency-Key` header, invented `status`/`memo`/`reversalOfTransactionId` fields the backend doesn't return, cursor pagination instead of page-based). `httpClient.ts` and `mockClient.ts` now both implement the verified real contract.
+- [ ] Loading/empty/error/disabled/success states; responsive (desktop/tablet/~320px); keyboard + a11y basics - not yet independently verified (only the golden path was smoke-tested, see MEMORY.md).
+- [x] Implements the direction chosen in DESIGN_DIRECTION.md.
+- [ ] Not yet wired to the real backend end-to-end (mock client only) - `VITE_API_BASE_URL`/`VITE_USE_MOCK_API` control the switch, see `src/api/index.ts`.
 
 ## M6 — Reporting / operational polish
 - [ ] Reconciliation view in UI, transaction detail view, filtering.

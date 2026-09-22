@@ -54,6 +54,19 @@ each session rather than trusting this note to stay current on *who*, only on
   milestone introduces an account type that should behave credit-normal (a real
   liability/revenue account), it needs its own explicit sign handling — don't assume
   this formula generalizes.
+  **Real bug found resuming the project (2026-09-22), fixed same session**: `TransferHandler`
+  had this backwards — it Debited the source and Credited the destination, which (given the
+  formula above) means every transfer would have *increased* the sender's balance and
+  *decreased* the receiver's. Caught by hand-tracing the formula against
+  `TransferConcurrencyTests.cs`'s already-correct expected balances, not by any test that
+  actually ran — the mocked `TransferHandlerTests.cs` unit test had encoded the buggy
+  direction as if it were correct (tautological, not independently derived), and the
+  Docker-gated integration tests that *did* have the right expected values have still never
+  executed against real Postgres locally. Fixed: source is now Credited (money leaving),
+  destination is now Debited (money arriving) — matches `SimulateFundingHandler`'s own
+  precedent (wallet Debited on a deposit). Any future handler that posts a transfer-shaped
+  entry pair must double check its direction against this convention by tracing the formula,
+  not by intuition ("debit the sender" reads right in English and is exactly backwards here).
 - `Transaction.Entries` is a getter-only `IReadOnlyList<LedgerEntry>` backed by a
   private field, with no Add/setter — EF Core needs
   `builder.Navigation(t => t.Entries).UsePropertyAccessMode(PropertyAccessMode.Field)`

@@ -73,8 +73,14 @@ public sealed class TransferHandler(IWalletRepository walletRepository, ITransac
             command.IdempotencyKey,
             TransactionType.Transfer,
             [
-                new LedgerEntryLine(sourceWallet.Id, LedgerEntryDirection.Debit, command.AmountMinorUnits, sourceWallet.Currency),
-                new LedgerEntryLine(destinationWallet.Id, LedgerEntryDirection.Credit, command.AmountMinorUnits, sourceWallet.Currency),
+                // Balance is debit-normal for every LedgerAccount (see MEMORY.md): a Debit
+                // entry increases an account's derived balance, Credit decreases it - the same
+                // convention SimulateFundingHandler uses (wallet gets Debit on a deposit). So
+                // money LEAVING the source is a Credit and money ARRIVING at the destination is
+                // a Debit - not the other way around, even though "debit the source" reads as
+                // the intuitive phrase in everyday language.
+                new LedgerEntryLine(sourceWallet.Id, LedgerEntryDirection.Credit, command.AmountMinorUnits, sourceWallet.Currency),
+                new LedgerEntryLine(destinationWallet.Id, LedgerEntryDirection.Debit, command.AmountMinorUnits, sourceWallet.Currency),
             ]);
 
         try
@@ -104,6 +110,6 @@ public sealed class TransferHandler(IWalletRepository walletRepository, ITransac
 
     private static bool MatchesThisTransfer(Transaction existing, Guid sourceWalletId, Guid destinationWalletId, long amountMinorUnits, Currency currency) =>
         existing.Type == TransactionType.Transfer
-        && existing.HasMatchingEntry(sourceWalletId, LedgerEntryDirection.Debit, amountMinorUnits, currency)
-        && existing.HasMatchingEntry(destinationWalletId, LedgerEntryDirection.Credit, amountMinorUnits, currency);
+        && existing.HasMatchingEntry(sourceWalletId, LedgerEntryDirection.Credit, amountMinorUnits, currency)
+        && existing.HasMatchingEntry(destinationWalletId, LedgerEntryDirection.Debit, amountMinorUnits, currency);
 }

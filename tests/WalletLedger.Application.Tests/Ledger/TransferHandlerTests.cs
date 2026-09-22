@@ -22,8 +22,10 @@ public class TransferHandlerTests
         Transaction.Post(
             ownerId, idempotencyKey, TransactionType.Transfer,
             [
-                new LedgerEntryLine(sourceId, LedgerEntryDirection.Debit, amount, currency),
-                new LedgerEntryLine(destinationId, LedgerEntryDirection.Credit, amount, currency),
+                // Debit-normal balance convention: money leaving the source is a Credit, money
+                // arriving at the destination is a Debit - see TransferHandler.HandleAsync.
+                new LedgerEntryLine(sourceId, LedgerEntryDirection.Credit, amount, currency),
+                new LedgerEntryLine(destinationId, LedgerEntryDirection.Debit, amount, currency),
             ]);
 
     [Theory]
@@ -310,11 +312,14 @@ public class TransferHandlerTests
         Assert.NotNull(posted);
         Assert.Equal(TransactionType.Transfer, posted!.Type);
         Assert.Equal(2, posted.Entries.Count);
+        // Debit-normal balance convention (see MEMORY.md / TransferHandler.HandleAsync): a
+        // Debit increases an account's derived balance, so the source (losing money) must be
+        // Credited and the destination (gaining money) must be Debited - not the reverse.
         Assert.Contains(posted.Entries, e =>
-            e.AccountId == sourceWallet.Id && e.Direction == LedgerEntryDirection.Debit &&
+            e.AccountId == sourceWallet.Id && e.Direction == LedgerEntryDirection.Credit &&
             e.AmountMinorUnits == 5_000 && e.Currency == Currency.Usd);
         Assert.Contains(posted.Entries, e =>
-            e.AccountId == destinationWallet.Id && e.Direction == LedgerEntryDirection.Credit &&
+            e.AccountId == destinationWallet.Id && e.Direction == LedgerEntryDirection.Debit &&
             e.AmountMinorUnits == 5_000 && e.Currency == Currency.Usd);
 
         Assert.NotNull(dto);
