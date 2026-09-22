@@ -121,6 +121,22 @@ public sealed class HistoryEndpointsTests(PostgresContainerFixture postgres)
     }
 
     [Fact]
+    public async Task GetHistory_CommaCombinedTypeValue_ReturnsBadRequest()
+    {
+        // M7 security gate finding: Enum.TryParse alone accepts comma-combined values on a
+        // non-[Flags] enum by OR-ing their underlying numbers - "SimulatedFunding,Reversal"
+        // would otherwise silently parse to an undefined value (1|2=3) that matches no row,
+        // returning an empty page instead of a 400.
+        using var client = CreateClient();
+        Authorize(client, await RegisterAndLoginAsync(client, UniqueEmail()));
+        var walletId = await CreateWalletAsync(client);
+
+        var response = await client.GetAsync($"/api/wallets/{walletId}/history?type=SimulatedFunding,Reversal");
+
+        Assert.Equal(HttpStatusCode.BadRequest, response.StatusCode);
+    }
+
+    [Fact]
     public async Task GetHistory_Pagination_SplitsAcrossPages()
     {
         using var client = CreateClient();

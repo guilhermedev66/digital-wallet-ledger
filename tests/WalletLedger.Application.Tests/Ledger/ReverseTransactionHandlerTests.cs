@@ -448,4 +448,44 @@ public class ReverseTransactionHandlerTests
 
         Assert.NotNull(dto);
     }
+
+    [Fact]
+    public async Task HandleAsync_Admin_CanReverseTransferBetweenTwoOtherUsers_NeitherWalletIsTheAdminsOwn()
+    {
+        // Security-gate finding (M7 full pass): an admin must be able to intervene on a
+        // transfer between two OTHER users - that's the documented purpose of the admin
+        // bypass - not just on transactions where they happen to own one of the wallets. Both
+        // the route wallet ownership check AND the affected-account check need to honor
+        // CallerIsAdmin, not just the second one.
+        var senderId = Guid.NewGuid();
+        var recipientId = Guid.NewGuid();
+        var adminId = Guid.NewGuid();
+        var sourceWallet = LedgerAccount.Open(senderId, Currency.Usd, "Source");
+        var destinationWallet = LedgerAccount.Open(recipientId, Currency.Usd, "Destination");
+        var original = BuildTransferTransaction(senderId, sourceWallet.Id, destinationWallet.Id, 5_000, Currency.Usd);
+
+        _walletRepository.Setup(r => r.GetByIdAsync(sourceWallet.Id, It.IsAny<CancellationToken>())).ReturnsAsync(sourceWallet);
+        _walletRepository.Setup(r => r.GetByIdAsync(destinationWallet.Id, It.IsAny<CancellationToken>())).ReturnsAsync(destinationWallet);
+        _transactionRepository.Setup(r => r.GetByIdAsync(original.Id, It.IsAny<CancellationToken>())).ReturnsAsync(original);
+        _transactionRepository
+            .Setup(r => r.FindByIdempotencyKeyAsync(adminId, "reverse-key", It.IsAny<CancellationToken>()))
+            .ReturnsAsync((Transaction?)null);
+        _transactionRepository.Setup(r => r.FindReversalOfAsync(original.Id, It.IsAny<CancellationToken>())).ReturnsAsync((Transaction?)null);
+
+        Transaction? posted = null;
+        _transactionRepository
+            .Setup(r => r.PostTransferIfSufficientFundsAsync(destinationWallet.Id, 5_000, It.IsAny<Transaction>(), It.IsAny<CancellationToken>()))
+            .Callback<Guid, long, Transaction, CancellationToken>((_, _, t, _) => posted = t)
+            .ReturnsAsync((Guid _, long _, Transaction t, CancellationToken _) => new TransferPostResult(TransferPostOutcome.Posted, t));
+
+        var handler = CreateHandler();
+        // Admin routes through the SENDER's wallet (neither wallet is the admin's own).
+        var command = new ReverseTransactionCommand(adminId, sourceWallet.Id, original.Id, "reverse-key", CallerIsAdmin: true);
+
+        var dto = await handler.HandleAsync(command, CancellationToken.None);
+
+        Assert.NotNull(dto);
+        Assert.NotNull(posted);
+        Assert.Equal(adminId, posted!.RequestedByUserId);
+    }
 }

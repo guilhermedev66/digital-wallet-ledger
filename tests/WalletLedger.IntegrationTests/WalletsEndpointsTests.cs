@@ -47,4 +47,18 @@ public sealed class WalletsEndpointsTests(PostgresContainerFixture postgres)
         Assert.Equal(created.Id, fetched!.Id);
         Assert.Equal("My wallet", fetched.DisplayName);
     }
+
+    [Fact]
+    public async Task Create_CommaCombinedCurrencyValue_ReturnsBadRequest()
+    {
+        // M7 security gate finding: Enum.TryParse alone accepts comma-combined values on a
+        // non-[Flags] enum by OR-ing their underlying numbers - "Usd,Brl" would otherwise
+        // silently parse as Brl (0|1=1) instead of being rejected.
+        using var client = CreateClient();
+        Authorize(client, await RegisterAndLoginAsync(client, UniqueEmail()));
+
+        var response = await client.PostAsJsonAsync("/api/wallets", new CreateWalletRequest("Usd,Brl", "Should be rejected"));
+
+        Assert.Equal(HttpStatusCode.BadRequest, response.StatusCode);
+    }
 }

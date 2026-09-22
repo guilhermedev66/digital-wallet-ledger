@@ -27,7 +27,7 @@ public sealed class WalletsController(
     [HttpPost]
     public async Task<ActionResult<WalletDto>> Create(CreateWalletRequest request, CancellationToken ct)
     {
-        if (!Enum.TryParse<Currency>(request.Currency, ignoreCase: true, out var currency))
+        if (!TryParseDefinedEnum<Currency>(request.Currency, out var currency))
         {
             return BadRequest(new { message = $"Unsupported currency '{request.Currency}'." });
         }
@@ -135,7 +135,7 @@ public sealed class WalletsController(
         TransactionType? parsedType = null;
         if (!string.IsNullOrWhiteSpace(type))
         {
-            if (!Enum.TryParse<TransactionType>(type, ignoreCase: true, out var parsed))
+            if (!TryParseDefinedEnum<TransactionType>(type, out var parsed))
             {
                 return BadRequest(new { message = $"Unsupported transaction type '{type}'." });
             }
@@ -212,6 +212,22 @@ public sealed class WalletsController(
         }
 
         return userId;
+    }
+
+    /// <summary>
+    /// Enum.TryParse alone accepts comma-combined values on a non-[Flags] enum by OR-ing their
+    /// underlying numbers - e.g. "SimulatedFunding,Reversal" parses to a numeric value (3) that
+    /// matches no real row instead of failing. Enum.IsDefined alone doesn't fully close this:
+    /// since one member is always numbered 0 (the OR identity), a combination that includes it
+    /// - e.g. "Usd,Brl" (Usd=0) - ORs down to the OTHER member's own value and IS a defined
+    /// member (Brl), so Enum.IsDefined can't tell it apart from someone just sending "Brl".
+    /// Rejecting a comma outright closes it regardless of which member happens to be 0 - found
+    /// and verified with a standalone repro (not guessed) during the M7 security gate pass.
+    /// </summary>
+    private static bool TryParseDefinedEnum<TEnum>(string? value, out TEnum result) where TEnum : struct, Enum
+    {
+        result = default;
+        return value is not null && !value.Contains(',') && Enum.TryParse(value, ignoreCase: true, out result) && Enum.IsDefined(result);
     }
 }
 

@@ -199,3 +199,25 @@ supposed to mirror faithfully.
   a real frontend URL is deployed (M7's remaining "Deployment" item), add it to
   `Cors:AllowedOrigins` in the production config/environment, never switch to
   `AllowAnyOrigin()`.
+- `ReverseTransactionHandler`'s admin bypass (M7 security gate finding, fixed): the
+  FIRST ownership check (does the caller own the route `WalletId`) originally didn't
+  honor `CallerIsAdmin`, only the second one (the affected-account check) did - meaning
+  an admin couldn't actually exercise the documented power to reverse a transfer
+  between two OTHER users, only ones where they happened to own one of the wallets.
+  Both checks now bypass for admin, matching `GetWalletByIdHandler`'s single-check
+  pattern. Whenever a handler adds a second ownership check for a different account
+  further down (not just the route-level one), double check EVERY check in the chain
+  honors `CallerIsAdmin` the same way - it's easy to wire the flag into only the check
+  you were focused on and miss an earlier one.
+- `Enum.TryParse<T>` on a non-`[Flags]` enum still accepts comma-separated input and
+  OR-combines the underlying numbers - e.g. `"SimulatedFunding,Reversal"` (1|2) parses
+  to 3, matching no real member. Adding `&& Enum.IsDefined(result)` does NOT fully
+  close this: whichever member is numbered 0 is the OR identity, so a combination that
+  includes it lands exactly on the OTHER member's own value and passes `IsDefined` too
+  - e.g. `"Usd,Brl"` (`Usd = 0`) parses to `Brl` and `IsDefined` says yes, indistinguishable
+  from someone just sending `"Brl"`. Verified this precisely with a standalone repro
+  before trusting it, since the failure mode is silent and enum-numbering-dependent -
+  don't assume `Enum.IsDefined` alone closes a comma-parsing gap without checking which
+  member is 0. The actual fix: reject any input containing `,` outright before calling
+  `TryParse` at all (see `WalletsController.TryParseDefinedEnum`) - correct regardless
+  of enum numbering.

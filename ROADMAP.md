@@ -72,6 +72,16 @@ Status legend: `[ ]` not started, `[~]` in progress, `[x]` done.
   exercise the documented cross-user reversal power yet), 6 OPTIONAL (mostly test-coverage
   gaps and pre-deployment items correctly deferred to the Deployment line below). Handed off
   for fixing (see MEMORY.md); revalidate here once that lands.
+  **Revalidated - both handed-off findings fixed**: `ReverseTransactionHandler`'s first
+  ownership check now also honors `CallerIsAdmin` (regression test: admin reverses a transfer
+  between two OTHER users, neither wallet their own - passes). The OPTIONAL `Enum.TryParse`
+  comma-quirk fix (item 3) needed a correction mid-fix - the first attempt (`Enum.IsDefined`
+  alone, as literally suggested in the handoff) turned out NOT to fully close it: verified
+  with a standalone repro that `"Usd,Brl"` still parses as `Brl` and passes `IsDefined`, since
+  `Usd=0` is the bitwise-OR identity - only combinations that land on an undefined numeric
+  value get caught that way. Shipped an explicit comma-rejection instead (`TryParseDefinedEnum`
+  in `WalletsController.cs`), verified against both the originally-cited case and the one that
+  would've slipped through. 143 unit tests green, 0 build warnings.
 - [x] Rate limiting, CORS, security headers, prod error handling (no stack traces to client) -
   fixing a read-only audit's findings (handoff from a peer session, not a fresh audit this
   session): rate limiting on `/api/auth/login`/`register` (`[EnableRateLimiting("auth")]`,

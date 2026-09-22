@@ -6,7 +6,7 @@ using WalletLedger.Domain.Entities;
 
 namespace WalletLedger.Application.Ledger;
 
-/// <summary>OwnerUserId must be resolved server-side from the authenticated caller's claims - never from client input. WalletId scopes which transaction the caller is allowed to reverse (it must be a party to it), it need not be the account actually debited by the reversal. CallerIsAdmin bypasses the same-account authorization check below - see HandleAsync's doc comment.</summary>
+/// <summary>OwnerUserId must be resolved server-side from the authenticated caller's claims - never from client input. WalletId scopes which transaction the caller is allowed to reverse (it must be a party to it), it need not be the account actually debited by the reversal. CallerIsAdmin bypasses BOTH ownership checks below (this wallet, and the affected account) - see HandleAsync's doc comment.</summary>
 public sealed record ReverseTransactionCommand(Guid OwnerUserId, Guid WalletId, Guid TransactionId, string IdempotencyKey, bool CallerIsAdmin = false);
 
 /// <summary>
@@ -21,19 +21,21 @@ public sealed class ReverseTransactionHandler(IWalletRepository walletRepository
     private const int MaxIdempotencyKeyLength = 128; // matches the Transactions.IdempotencyKey column
 
     /// <summary>
-    /// Returns null when the wallet doesn't exist, isn't the caller's, the transaction doesn't
-    /// exist or doesn't have an entry against that wallet, or (non-admin only) the account the
-    /// reversal would actually debit belongs to a different user - same non-leak pattern as
-    /// GetWalletByIdHandler throughout. That last case matters: a transfer's SENDER is a party
-    /// to the transaction, but reversing it debits the RECIPIENT's wallet - letting the sender
-    /// unilaterally trigger that would claw money out of someone else's wallet without their
-    /// consent. So self-service reversal is only allowed when it debits the caller's own wallet
-    /// (the recipient voluntarily sending it back, or a wallet owner undoing their own
-    /// SimulatedFunding) - reversing a transaction the *other* way needs an admin, the same
-    /// trusted role every other ownership check in this API already bypasses for. Reversing a
-    /// Reversal, or a transaction that's already been reversed, or one the debited account can't
-    /// cover, are all legitimate distinct outcomes instead (400/409/422 - see each exception's
-    /// own doc comment).
+    /// Returns null when the wallet doesn't exist, the transaction doesn't exist or doesn't
+    /// have an entry against that wallet, or (non-admin only) the caller doesn't own that
+    /// wallet OR doesn't own the account the reversal would actually debit - same non-leak
+    /// pattern as GetWalletByIdHandler throughout, and the SAME admin bypass on both checks
+    /// (an admin isn't required to personally own either side). The second check matters for
+    /// non-admins specifically: a transfer's SENDER is a party to the transaction, but
+    /// reversing it debits the RECIPIENT's wallet - letting the sender unilaterally trigger
+    /// that would claw money out of someone else's wallet without their consent. So
+    /// self-service reversal is only allowed when it debits the caller's own wallet (the
+    /// recipient voluntarily sending it back, or a wallet owner undoing their own
+    /// SimulatedFunding); reversing a transaction the *other* way - including intervening on a
+    /// transfer between two OTHER users, neither of them the caller - needs the admin role.
+    /// Reversing a Reversal, or a transaction that's already been reversed, or one the debited
+    /// account can't cover, are all legitimate distinct outcomes instead (400/409/422 - see
+    /// each exception's own doc comment).
     /// </summary>
     public async Task<TransactionDto?> HandleAsync(ReverseTransactionCommand command, CancellationToken ct)
     {
@@ -43,7 +45,7 @@ public sealed class ReverseTransactionHandler(IWalletRepository walletRepository
         }
 
         var wallet = await walletRepository.GetByIdAsync(command.WalletId, ct);
-        if (wallet is null || wallet.OwnerUserId != command.OwnerUserId)
+        if (wallet is null || (wallet.OwnerUserId != command.OwnerUserId && !command.CallerIsAdmin))
         {
             return null;
         }
