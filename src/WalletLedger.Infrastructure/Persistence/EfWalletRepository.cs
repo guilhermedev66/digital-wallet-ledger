@@ -25,4 +25,7 @@ public sealed class EfWalletRepository(WalletLedgerDbContext dbContext) : IWalle
     public Task<LedgerAccount?> GetSystemFundingAccountAsync(Currency currency, CancellationToken ct) =>
         dbContext.LedgerAccounts.SingleOrDefaultAsync(
             a => a.Type == LedgerAccountType.SystemFunding && a.Currency == currency, ct);
+
+    public async Task<IReadOnlyList<LedgerAccount>> ListAllAsync(CancellationToken ct) =>
+        await dbContext.LedgerAccounts.OrderBy(a => a.CreatedAtUtc).ToListAsync(ct);
 }

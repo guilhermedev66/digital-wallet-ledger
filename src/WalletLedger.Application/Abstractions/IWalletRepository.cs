@@ -13,4 +13,7 @@ public interface IWalletRepository
 
     /// <summary>The one SystemFunding account for a currency - seeded out-of-band at startup, never created via a client-facing endpoint.</summary>
     Task<LedgerAccount?> GetSystemFundingAccountAsync(Currency currency, CancellationToken ct);
+
+    /// <summary>Every LedgerAccount in the system (wallets and SystemFunding alike). Global reconciliation only - admin-gated at the API boundary, see ReconciliationController.</summary>
+    Task<IReadOnlyList<LedgerAccount>> ListAllAsync(CancellationToken ct);
 }

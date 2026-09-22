@@ -37,6 +37,9 @@ builder.Services.AddScoped<SimulateFundingHandler>();
 builder.Services.AddScoped<GetWalletBalanceHandler>();
 builder.Services.AddScoped<TransferHandler>();
 builder.Services.AddScoped<GetWalletHistoryHandler>();
+builder.Services.AddScoped<ReverseTransactionHandler>();
+builder.Services.AddScoped<GetAccountReconciliationHandler>();
+builder.Services.AddScoped<GetGlobalReconciliationHandler>();
 
 var jwtSection = builder.Configuration.GetSection(JwtOptions.SectionName);
 var jwtSigningKey = jwtSection["SigningKey"]

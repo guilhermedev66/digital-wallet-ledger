@@ -5,6 +5,7 @@ using WalletLedger.Application.Dtos;
 using WalletLedger.Application.Exceptions;
 using WalletLedger.Application.Ledger;
 using WalletLedger.Application.Wallets;
+using WalletLedger.Domain.Entities;
 using WalletLedger.Domain.ValueObjects;
 
 namespace WalletLedger.Api.Controllers;
@@ -19,7 +20,9 @@ public sealed class WalletsController(
     SimulateFundingHandler simulateFundingHandler,
     GetWalletBalanceHandler getWalletBalanceHandler,
     TransferHandler transferHandler,
-    GetWalletHistoryHandler getWalletHistoryHandler) : ControllerBase
+    GetWalletHistoryHandler getWalletHistoryHandler,
+    ReverseTransactionHandler reverseTransactionHandler,
+    GetAccountReconciliationHandler getAccountReconciliationHandler) : ControllerBase
 {
     [HttpPost]
     public async Task<ActionResult<WalletDto>> Create(CreateWalletRequest request, CancellationToken ct)
@@ -120,11 +123,30 @@ public sealed class WalletsController(
     }
 
     [HttpGet("{id:guid}/history")]
-    public async Task<ActionResult<PagedResult<TransactionDto>>> GetHistory(Guid id, [FromQuery] int page = 1, [FromQuery] int pageSize = 20, CancellationToken ct = default)
+    public async Task<ActionResult<PagedResult<TransactionDto>>> GetHistory(
+        Guid id,
+        [FromQuery] int page = 1,
+        [FromQuery] int pageSize = 20,
+        [FromQuery] DateTime? fromUtc = null,
+        [FromQuery] DateTime? toUtc = null,
+        [FromQuery] string? type = null,
+        CancellationToken ct = default)
     {
+        TransactionType? parsedType = null;
+        if (!string.IsNullOrWhiteSpace(type))
+        {
+            if (!Enum.TryParse<TransactionType>(type, ignoreCase: true, out var parsed))
+            {
+                return BadRequest(new { message = $"Unsupported transaction type '{type}'." });
+            }
+
+            parsedType = parsed;
+        }
+
         try
         {
-            var history = await getWalletHistoryHandler.HandleAsync(new GetWalletHistoryQuery(GetOwnerUserId(), id, page, pageSize), ct);
+            var history = await getWalletHistoryHandler.HandleAsync(
+                new GetWalletHistoryQuery(GetOwnerUserId(), id, page, pageSize, fromUtc, toUtc, parsedType), ct);
 
             // Same non-leak pattern as GetById/SimulateFunding/Transfer: not-found and not-yours are both 404.
             return history is null ? NotFound() : Ok(history);
@@ -133,6 +155,51 @@ public sealed class WalletsController(
         {
             return BadRequest(new { message = ex.Message });
         }
+    }
+
+    [HttpPost("{id:guid}/transactions/{transactionId:guid}/reverse")]
+    public async Task<ActionResult<TransactionDto>> Reverse(
+        Guid id, Guid transactionId, [FromHeader(Name = "Idempotency-Key")] string? idempotencyKey, CancellationToken ct)
+    {
+        if (string.IsNullOrWhiteSpace(idempotencyKey))
+        {
+            return BadRequest(new { message = "The 'Idempotency-Key' header is required." });
+        }
+
+        try
+        {
+            var reversal = await reverseTransactionHandler.HandleAsync(
+                new ReverseTransactionCommand(GetOwnerUserId(), id, transactionId, idempotencyKey, CallerIsAdmin: User.IsInRole("admin")), ct);
+
+            // Same non-leak pattern as GetById/SimulateFunding/Transfer: not-found, not-yours,
+            // and "that transaction isn't yours to reverse" are all 404.
+            return reversal is null ? NotFound() : Ok(reversal);
+        }
+        catch (ArgumentException ex)
+        {
+            return BadRequest(new { message = ex.Message });
+        }
+        catch (InsufficientFundsException ex)
+        {
+            return UnprocessableEntity(new { message = ex.Message });
+        }
+        catch (TransactionAlreadyReversedException ex)
+        {
+            return Conflict(new { message = ex.Message });
+        }
+        catch (IdempotencyKeyConflictException ex)
+        {
+            return Conflict(new { message = ex.Message });
+        }
+    }
+
+    [HttpGet("{id:guid}/reconciliation")]
+    public async Task<ActionResult<ReconciliationReportDto>> GetReconciliation(Guid id, CancellationToken ct)
+    {
+        var report = await getAccountReconciliationHandler.HandleAsync(
+            new GetAccountReconciliationQuery(GetOwnerUserId(), id, CallerIsAdmin: User.IsInRole("admin")), ct);
+
+        return report is null ? NotFound() : Ok(report);
     }
 
     /// <summary>Owner id is always resolved from the authenticated caller's own JWT claims - never from client input.</summary>

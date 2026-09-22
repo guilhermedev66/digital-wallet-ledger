@@ -4,6 +4,7 @@ using Npgsql;
 using WalletLedger.Application.Abstractions;
 using WalletLedger.Application.Exceptions;
 using WalletLedger.Domain.Entities;
+using WalletLedger.Infrastructure.Persistence.Configurations;
 
 namespace WalletLedger.Infrastructure.Persistence;
 
@@ -22,9 +23,13 @@ public sealed class EfTransactionRepository(WalletLedgerDbContext dbContext) : I
         {
             await dbContext.SaveChangesAsync(ct);
         }
-        catch (DbUpdateException ex) when (IsUniqueIdempotencyViolation(ex))
+        catch (DbUpdateException ex) when (IsUniqueViolation(ex, TransactionConfiguration.IdempotencyKeyIndexName))
         {
             throw new IdempotencyKeyAlreadyUsedException();
+        }
+        catch (DbUpdateException ex) when (IsUniqueViolation(ex, TransactionConfiguration.ReversalOfTransactionIdIndexName))
+        {
+            throw new TransactionAlreadyReversedException();
         }
     }
 
@@ -43,6 +48,16 @@ public sealed class EfTransactionRepository(WalletLedgerDbContext dbContext) : I
         dbContext.Transactions
             .Include(t => t.Entries)
             .SingleOrDefaultAsync(t => t.RequestedByUserId == requestedByUserId && t.IdempotencyKey == idempotencyKey, ct);
+
+    public Task<Transaction?> GetByIdAsync(Guid transactionId, CancellationToken ct) =>
+        dbContext.Transactions
+            .Include(t => t.Entries)
+            .SingleOrDefaultAsync(t => t.Id == transactionId, ct);
+
+    public Task<Transaction?> FindReversalOfAsync(Guid originalTransactionId, CancellationToken ct) =>
+        dbContext.Transactions
+            .Include(t => t.Entries)
+            .SingleOrDefaultAsync(t => t.ReversalOfTransactionId == originalTransactionId, ct);
 
     public async Task<TransferPostResult> PostTransferIfSufficientFundsAsync(Guid sourceAccountId, long debitAmount, Transaction transaction, CancellationToken ct)
     {
@@ -80,6 +95,25 @@ public sealed class EfTransactionRepository(WalletLedgerDbContext dbContext) : I
             throw new IdempotencyKeyAlreadyUsedException();
         }
 
+        // Same ordering lesson as the idempotency check above (see MEMORY.md, M3 financial-
+        // correctness note): when this posting `transaction` is a reversal, check "has the
+        // original already been reversed by someone else" here, under the lock, before the
+        // balance check - not after. Otherwise two concurrent reversal attempts for the same
+        // original transaction (different idempotency keys) would let the balance check on the
+        // second one run against a balance the first one's commit already reduced, misreporting
+        // InsufficientFunds for what should be TransactionAlreadyReversedException.
+        if (transaction.ReversalOfTransactionId is Guid originalTransactionId)
+        {
+            var alreadyReversed = await dbContext.Transactions
+                .AnyAsync(t => t.ReversalOfTransactionId == originalTransactionId, ct);
+
+            if (alreadyReversed)
+            {
+                await dbTransaction.RollbackAsync(ct);
+                throw new TransactionAlreadyReversedException();
+            }
+        }
+
         var currentBalance = await GetAccountBalanceAsync(sourceAccountId, ct);
 
         if (currentBalance < debitAmount)
@@ -94,10 +128,15 @@ public sealed class EfTransactionRepository(WalletLedgerDbContext dbContext) : I
         {
             await dbContext.SaveChangesAsync(ct);
         }
-        catch (DbUpdateException ex) when (IsUniqueIdempotencyViolation(ex))
+        catch (DbUpdateException ex) when (IsUniqueViolation(ex, TransactionConfiguration.IdempotencyKeyIndexName))
         {
             await dbTransaction.RollbackAsync(ct);
             throw new IdempotencyKeyAlreadyUsedException();
+        }
+        catch (DbUpdateException ex) when (IsUniqueViolation(ex, TransactionConfiguration.ReversalOfTransactionIdIndexName))
+        {
+            await dbTransaction.RollbackAsync(ct);
+            throw new TransactionAlreadyReversedException();
         }
 
         await dbTransaction.CommitAsync(ct);
@@ -105,9 +144,25 @@ public sealed class EfTransactionRepository(WalletLedgerDbContext dbContext) : I
         return new TransferPostResult(TransferPostOutcome.Posted, transaction);
     }
 
-    public async Task<(IReadOnlyList<Transaction> Items, int TotalCount)> ListTransactionsForAccountAsync(Guid accountId, int page, int pageSize, CancellationToken ct)
+    public async Task<(IReadOnlyList<Transaction> Items, int TotalCount)> ListTransactionsForAccountAsync(
+        Guid accountId, int page, int pageSize, DateTime? fromUtc, DateTime? toUtc, TransactionType? type, CancellationToken ct)
     {
         var query = dbContext.Transactions.Where(t => t.Entries.Any(e => e.AccountId == accountId));
+
+        if (fromUtc is not null)
+        {
+            query = query.Where(t => t.PostedAtUtc >= fromUtc);
+        }
+
+        if (toUtc is not null)
+        {
+            query = query.Where(t => t.PostedAtUtc <= toUtc);
+        }
+
+        if (type is not null)
+        {
+            query = query.Where(t => t.Type == type);
+        }
 
         var totalCount = await query.CountAsync(ct);
 
@@ -121,6 +176,22 @@ public sealed class EfTransactionRepository(WalletLedgerDbContext dbContext) : I
         return (items, totalCount);
     }
 
-    private static bool IsUniqueIdempotencyViolation(DbUpdateException ex) =>
-        ex.InnerException is PostgresException { SqlState: PostgresErrorCodes.UniqueViolation };
+    public Task<IReadOnlyList<LedgerEntryProjection>> ListEntriesForTransactionsTouchingAccountAsync(Guid accountId, CancellationToken ct)
+    {
+        var transactionIds = dbContext.LedgerEntries.Where(e => e.AccountId == accountId).Select(e => e.TransactionId);
+
+        return ProjectEntriesAsync(dbContext.LedgerEntries.Where(e => transactionIds.Contains(e.TransactionId)), ct);
+    }
+
+    public Task<IReadOnlyList<LedgerEntryProjection>> ListAllEntriesAsync(CancellationToken ct) =>
+        ProjectEntriesAsync(dbContext.LedgerEntries, ct);
+
+    private static async Task<IReadOnlyList<LedgerEntryProjection>> ProjectEntriesAsync(IQueryable<LedgerEntry> query, CancellationToken ct) =>
+        await query
+            .Select(e => new LedgerEntryProjection(e.TransactionId, e.AccountId, e.Direction, e.AmountMinorUnits, e.Currency))
+            .ToListAsync(ct);
+
+    private static bool IsUniqueViolation(DbUpdateException ex, string indexName) =>
+        ex.InnerException is PostgresException { SqlState: PostgresErrorCodes.UniqueViolation } pg
+        && pg.ConstraintName == indexName;
 }

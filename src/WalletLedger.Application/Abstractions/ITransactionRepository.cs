@@ -1,4 +1,5 @@
 using WalletLedger.Domain.Entities;
+using WalletLedger.Domain.ValueObjects;
 
 namespace WalletLedger.Application.Abstractions;
 
@@ -9,6 +10,17 @@ public enum TransferPostOutcome
 }
 
 public sealed record TransferPostResult(TransferPostOutcome Outcome, Transaction? Transaction);
+
+/// <summary>
+/// A raw LedgerEntry row, projected independently of the Transaction aggregate. Reconciliation
+/// (see ReconciliationEngine) is deliberately built on this instead of loaded Transaction/Entries
+/// navigations: the point of reconciliation is to re-derive the ledger's truth straight from
+/// LedgerEntry rows, the same way a defense-in-depth check against DB tampering or a future
+/// bug would have to - not to trust that whatever produced a Transaction object already got it
+/// right. It also happens to make the detection logic trivially unit-testable, since
+/// Transaction.Post structurally can't be used to construct an unbalanced Transaction on purpose.
+/// </summary>
+public sealed record LedgerEntryProjection(Guid TransactionId, Guid AccountId, LedgerEntryDirection Direction, long AmountMinorUnits, Currency Currency);
 
 public interface ITransactionRepository
 {
@@ -32,6 +44,12 @@ public interface ITransactionRepository
 
     Task<Transaction?> FindByIdempotencyKeyAsync(Guid requestedByUserId, string idempotencyKey, CancellationToken ct);
 
+    /// <summary>By primary key, entries included. Used by ReverseTransactionHandler to load the transaction being reversed.</summary>
+    Task<Transaction?> GetByIdAsync(Guid transactionId, CancellationToken ct);
+
+    /// <summary>The existing reversal of originalTransactionId, if any (a transaction can only ever be reversed once - see TransactionAlreadyReversedException).</summary>
+    Task<Transaction?> FindReversalOfAsync(Guid originalTransactionId, CancellationToken ct);
+
     /// <summary>
     /// Locks sourceAccountId's row for the duration of one DB transaction (SELECT ... FOR
     /// UPDATE - see ARCHITECTURE.md's concurrency section), re-derives its current balance
@@ -40,13 +58,29 @@ public interface ITransactionRepository
     /// locks the destination account (credits can't overdraw, so nothing needs protecting on
     /// that side - see MEMORY.md for why that's sufficient and doesn't risk a lock-ordering
     /// deadlock). Throws IdempotencyKeyAlreadyUsedException on the same unique-constraint race
-    /// as AddAsync.
+    /// as AddAsync. Also used by ReverseTransactionHandler to reverse a Transfer (the account
+    /// being newly debited by the reversal is the original transfer's destination wallet, which
+    /// genuinely can be overdrawn if it's since been spent elsewhere) - so also throws
+    /// TransactionAlreadyReversedException on the reversal-uniqueness race.
     /// </summary>
     Task<TransferPostResult> PostTransferIfSufficientFundsAsync(Guid sourceAccountId, long debitAmount, Transaction transaction, CancellationToken ct);
 
     /// <summary>
     /// Transactions with at least one entry against accountId, most recent first, paginated.
-    /// TotalCount is the total matching row count (for computing total pages), not the page size.
+    /// TotalCount is the total matching row count (for computing total pages), not the page
+    /// size. fromUtc/toUtc/type filter on PostedAtUtc (inclusive) and Type when given.
     /// </summary>
-    Task<(IReadOnlyList<Transaction> Items, int TotalCount)> ListTransactionsForAccountAsync(Guid accountId, int page, int pageSize, CancellationToken ct);
+    Task<(IReadOnlyList<Transaction> Items, int TotalCount)> ListTransactionsForAccountAsync(
+        Guid accountId, int page, int pageSize, DateTime? fromUtc, DateTime? toUtc, TransactionType? type, CancellationToken ct);
+
+    /// <summary>
+    /// Raw entries for every transaction that has at least one entry against accountId - i.e.
+    /// every entry of every transaction the account is a party to, not just that account's own
+    /// entries, since reconciliation needs a transaction's WHOLE entry set to verify its
+    /// debit/credit balance (see ReconciliationEngine).
+    /// </summary>
+    Task<IReadOnlyList<LedgerEntryProjection>> ListEntriesForTransactionsTouchingAccountAsync(Guid accountId, CancellationToken ct);
+
+    /// <summary>Every LedgerEntry row in the system. Global reconciliation only - admin-gated at the API boundary, see ReconciliationController.</summary>
+    Task<IReadOnlyList<LedgerEntryProjection>> ListAllEntriesAsync(CancellationToken ct);
 }

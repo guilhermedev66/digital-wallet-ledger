@@ -62,3 +62,18 @@ public sealed class IdempotencyKeyAlreadyUsedException : Exception
     {
     }
 }
+
+/// <summary>
+/// A transaction can only be reversed once (enforced by a unique filtered index on
+/// Transactions.ReversalOfTransactionId - see TransactionConfiguration). Thrown both when
+/// ReverseTransactionHandler's own pre-check (FindReversalOfAsync) finds an existing reversal
+/// under a different idempotency key, and when that DB constraint is violated on insert by a
+/// concurrent request that won the same race - same two-layer pattern as
+/// IdempotencyKeyAlreadyUsedException. Mapped to 409 Conflict.
+/// </summary>
+public sealed class TransactionAlreadyReversedException : Exception
+{
+    public TransactionAlreadyReversedException() : base("This transaction has already been reversed.")
+    {
+    }
+}

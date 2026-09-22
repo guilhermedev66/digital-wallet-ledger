@@ -128,3 +128,26 @@ a real vulnerability, not just an architectural tradeoff.
   double-transfer if it retries with a new key. The regression test that caught this
   needed to fund to *exactly* the combined debit amount - funding with headroom to
   spare doesn't exercise the branch where the ordering bug mattered.
+  **This ordering lesson recurred in M4**: `ReverseTransactionHandler`/
+  `PostTransferIfSufficientFundsAsync` add a second "first-wins" state check (has this
+  original transaction already been reversed, via a filtered unique index on
+  `ReversalOfTransactionId`), and it's placed under the same lock, before the balance
+  check, before it ever shipped - not discovered by review after the fact this time.
+  Any *new* "only one X may exist" check added to this posting path in the future
+  should default to this same position (post-lock, pre-balance) rather than trusting
+  the DB constraint alone to translate races into the right exception.
+- Reversal direction (M4, `ReverseTransactionHandler`): mirroring an entry flips its
+  Direction, so the account that LOSES money in the *reversal* - the one that needs
+  the balance floor check - is whichever account held the **Debit** entry in the
+  *original* (its mirrored entry becomes Credit), not the credited one. Easy to get
+  backwards by intuition; derive it from the debit-normal formula above, don't guess.
+- Reversal authorization (M4, decided after self-review, not requested explicitly by
+  the M4 task handoff): self-service reversal is only allowed when it debits the
+  caller's *own* wallet (a recipient voluntarily sending a transfer back, or a wallet
+  owner undoing their own SimulatedFunding) - reversing a transaction the *other* way
+  (e.g. a sender unilaterally clawing a transfer's proceeds back out of the
+  recipient's wallet) requires the admin role. Without this gate, "any party to the
+  original transaction can reverse it" would let a sender take money out of someone
+  else's wallet without their consent, just by being a party to the original transfer
+  - a real authorization gap, not a hypothetical one. See
+  `ReverseTransactionHandler.HandleAsync`'s doc comment for the full reasoning.

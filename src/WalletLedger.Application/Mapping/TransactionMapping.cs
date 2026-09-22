@@ -9,6 +9,7 @@ public static class TransactionMapping
         transaction.Id,
         transaction.Type.ToString(),
         transaction.PostedAtUtc,
+        transaction.ReversalOfTransactionId,
         transaction.Entries
             .Select(e => new LedgerEntryDto(e.AccountId, e.Direction.ToString(), e.AmountMinorUnits, e.Currency.ToString()))
             .ToList());
