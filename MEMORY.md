@@ -38,6 +38,16 @@ session picked up backend vs. frontend/QA at the time; check `ListAgents` fresh
 each session rather than trusting this note to stay current on *who*, only on
 *the fact that roles must be verified, never assumed*.
 
+## Frontend security note (2026-09-22, read-only audit, no blockers)
+
+JWT is stored in `localStorage` (`AuthContext.tsx`), not an httpOnly cookie - a known
+XSS-exfiltration tradeoff, but audited with no current exploit path (no
+`dangerouslySetInnerHTML`/`.innerHTML`/`eval` anywhere in `src/`, all user-controlled
+strings render through JSX's auto-escaping). Acceptable as-is for a no-real-money
+portfolio demo. Revisit if a future milestone adds any raw-HTML/markdown rendering
+path that could bypass JSX escaping - that's the condition that would turn this into
+a real vulnerability, not just an architectural tradeoff.
+
 ## Architecture decisions
 
 - No generic `IRepository<T>`. See ARCHITECTURE.md "Why not Repository-per-aggregate".
