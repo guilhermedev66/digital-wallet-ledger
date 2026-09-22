@@ -77,6 +77,17 @@ a real vulnerability, not just an architectural tradeoff.
   precedent (wallet Debited on a deposit). Any future handler that posts a transfer-shaped
   entry pair must double check its direction against this convention by tracing the formula,
   not by intuition ("debit the sender" reads right in English and is exactly backwards here).
+  Independently re-verified by a second session (adversarial review, not a skim): traced all 7
+  `TransferConcurrencyTests.cs` cases by hand against the fix (all match), confirmed the
+  `MatchesThisTransfer`/`HasMatchingEntry` idempotency-replay check was swapped correctly too
+  (a miss there would've made every legitimate replay throw a spurious 409 instead of
+  returning the original), and confirmed no other handler/DTO assumed the old direction.
+  One follow-up noted, not done yet: the debit-normal formula (`Debit ? +amount : -amount`)
+  is hand-duplicated in `EfTransactionRepository.GetAccountBalanceAsync` and
+  `ReconciliationEngine.ReconcileAccount` instead of one shared helper - harmless while they
+  agree, but reconciliation's whole point is catching drift from "the real formula," and two
+  independent copies of it undermines the point if they ever diverge. Extract to a shared
+  `LedgerBalanceFormula.Compute(entries)` next time either file is touched.
 - `Transaction.Entries` is a getter-only `IReadOnlyList<LedgerEntry>` backed by a
   private field, with no Add/setter — EF Core needs
   `builder.Navigation(t => t.Entries).UsePropertyAccessMode(PropertyAccessMode.Field)`
