@@ -9,6 +9,7 @@ const NAV_ITEMS = [
   { to: '/', label: 'Dashboard', end: true },
   { to: '/transfer', label: 'Transfer', end: false },
   { to: '/activity', label: 'Activity', end: false },
+  { to: '/reconciliation', label: 'Reconciliation', end: false },
 ]
 
 export function AppShell() {

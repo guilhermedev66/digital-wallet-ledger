@@ -84,6 +84,30 @@ export interface TransferInput {
   idempotencyKey: string
 }
 
+export interface AccountReconciliation {
+  accountId: string
+  accountType: string
+  currency: Currency
+  projectedBalanceMinorUnits: number
+  recomputedBalanceMinorUnits: number
+  driftMinorUnits: number
+  isBalanced: boolean
+}
+
+export interface UnbalancedTransaction {
+  transactionId: string
+  currency: Currency
+  totalDebitMinorUnits: number
+  totalCreditMinorUnits: number
+}
+
+export interface ReconciliationReport {
+  generatedAtUtc: string
+  accounts: AccountReconciliation[]
+  unbalancedTransactions: UnbalancedTransaction[]
+  isClean: boolean
+}
+
 export interface ApiClient {
   setAuthToken(token: string | null): void
 
@@ -104,4 +128,12 @@ export interface ApiClient {
   transfer(input: TransferInput): Promise<Transaction>
 
   getHistory(walletId: string, page?: number, pageSize?: number): Promise<PagedResult<Transaction>>
+
+  reverseTransaction(
+    walletId: string,
+    transactionId: string,
+    idempotencyKey: string,
+  ): Promise<Transaction>
+
+  getWalletReconciliation(walletId: string): Promise<ReconciliationReport>
 }

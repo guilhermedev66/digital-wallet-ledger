@@ -5,6 +5,7 @@ import { ActivityPage } from './pages/activity/ActivityPage'
 import { LoginPage } from './pages/auth/LoginPage'
 import { RegisterPage } from './pages/auth/RegisterPage'
 import { DashboardPage } from './pages/dashboard/DashboardPage'
+import { ReconciliationPage } from './pages/reconciliation/ReconciliationPage'
 import { TransferPage } from './pages/transfer/TransferPage'
 
 function App() {
@@ -22,6 +23,7 @@ function App() {
         <Route path="/" element={<DashboardPage />} />
         <Route path="/transfer" element={<TransferPage />} />
         <Route path="/activity" element={<ActivityPage />} />
+        <Route path="/reconciliation" element={<ReconciliationPage />} />
       </Route>
       <Route path="*" element={<Navigate to="/" replace />} />
     </Routes>

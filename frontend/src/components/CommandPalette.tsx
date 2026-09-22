@@ -22,6 +22,7 @@ export function CommandPalette({ isOpen, onClose }: { isOpen: boolean; onClose: 
       { id: 'dashboard', label: 'Go to dashboard', hint: 'wallets', run: () => navigate('/') },
       { id: 'transfer', label: 'Start a transfer', hint: 'move money', run: () => navigate('/transfer') },
       { id: 'activity', label: 'View activity', hint: 'transaction history', run: () => navigate('/activity') },
+      { id: 'reconciliation', label: 'View reconciliation', hint: 'balance proof', run: () => navigate('/reconciliation') },
       { id: 'logout', label: 'Log out', hint: 'end session', run: () => logout() },
     ],
     [navigate, logout],

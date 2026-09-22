@@ -13,6 +13,7 @@ import styles from './ActivityPage.module.css'
 const PAGE_SIZE = 20
 
 type Status = 'loading' | 'success' | 'error'
+type ReversePhase = 'idle' | 'confirming' | 'submitting'
 
 export function ActivityPage() {
   const { wallets, status: walletsStatus } = useWallets()
@@ -25,6 +26,9 @@ export function ActivityPage() {
   const [status, setStatus] = useState<Status>('loading')
   const [error, setError] = useState<string | null>(null)
   const [isLoadingMore, setIsLoadingMore] = useState(false)
+  const [reversingId, setReversingId] = useState<string | null>(null)
+  const [reversePhase, setReversePhase] = useState<ReversePhase>('idle')
+  const [reverseError, setReverseError] = useState<string | null>(null)
 
   useEffect(() => {
     if (!selectedWalletId && wallets.length > 0) {
@@ -69,6 +73,29 @@ export function ActivityPage() {
   }
 
   const selectedWallet = wallets.find((w) => w.id === selectedWalletId)
+
+  // Best-effort, current-page-only: hides the Reverse action for a transaction that's
+  // already been reversed, without needing a dedicated backend lookup. If the reversal
+  // happened on a page not currently loaded, the button still shows - the backend's own
+  // 409 (TransactionAlreadyReversedException) is the real guard either way.
+  const reversedTransactionIds = new Set(
+    items.map((t) => t.reversalOfTransactionId).filter((id): id is string => id !== null),
+  )
+
+  async function confirmReverse(transactionId: string) {
+    if (!selectedWalletId) return
+    setReversePhase('submitting')
+    setReverseError(null)
+    try {
+      await apiClient.reverseTransaction(selectedWalletId, transactionId, crypto.randomUUID())
+      setReversingId(null)
+      setReversePhase('idle')
+      await load(selectedWalletId)
+    } catch (err) {
+      setReverseError(isApiError(err) ? err.message : 'Could not reverse this transaction.')
+      setReversePhase('confirming')
+    }
+  }
 
   return (
     <div>
@@ -134,6 +161,7 @@ export function ActivityPage() {
                     <th>Date</th>
                     <th>Type</th>
                     <th>Amount</th>
+                    <th aria-label="Actions" />
                   </tr>
                 </thead>
                 <tbody>
@@ -142,6 +170,8 @@ export function ActivityPage() {
                     // Debit-normal: a Debit entry increases this wallet's balance (money in),
                     // Credit decreases it (money out) - see MEMORY.md / API_CONTRACT.md.
                     const sign = entry?.direction === 'Debit' ? 1 : -1
+                    const canReverse = tx.type !== 'Reversal' && !reversedTransactionIds.has(tx.id)
+                    const isConfirming = reversingId === tx.id
                     return (
                       <tr key={tx.id}>
                         <td data-label="Date">{new Date(tx.postedAtUtc).toLocaleString()}</td>
@@ -157,6 +187,42 @@ export function ActivityPage() {
                           {entry
                             ? formatSignedAmount(entry.amountMinorUnits, entry.currency, sign)
                             : '—'}
+                        </td>
+                        <td data-label="Actions">
+                          {canReverse && !isConfirming && (
+                            <Button
+                              onClick={() => {
+                                setReversingId(tx.id)
+                                setReversePhase('confirming')
+                                setReverseError(null)
+                              }}
+                            >
+                              Reverse
+                            </Button>
+                          )}
+                          {isConfirming && (
+                            <div className={styles.reverseConfirm}>
+                              {reverseError && <ErrorBanner message={reverseError} />}
+                              <span>Reverse this transaction?</span>
+                              <Button
+                                variant="primary"
+                                isLoading={reversePhase === 'submitting'}
+                                onClick={() => confirmReverse(tx.id)}
+                              >
+                                Confirm
+                              </Button>
+                              <Button
+                                disabled={reversePhase === 'submitting'}
+                                onClick={() => {
+                                  setReversingId(null)
+                                  setReversePhase('idle')
+                                  setReverseError(null)
+                                }}
+                              >
+                                Cancel
+                              </Button>
+                            </div>
+                          )}
                         </td>
                       </tr>
                     )

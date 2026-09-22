@@ -1,0 +1,91 @@
+.header {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: var(--space-4);
+  margin-bottom: var(--space-5);
+  flex-wrap: wrap;
+}
+
+.title {
+  font-size: 20px;
+}
+
+.subtitle {
+  font-size: 13px;
+  color: var(--color-text-faint);
+  margin-top: var(--space-1);
+  max-width: 60ch;
+}
+
+.select {
+  height: 38px;
+  padding: 0 var(--space-3);
+  background: var(--color-surface);
+  border: 1px solid var(--color-border-strong);
+  border-radius: var(--radius-sm);
+}
+
+.panel {
+  border: 1px solid var(--color-border-strong);
+  border-radius: var(--radius-md);
+  background: var(--color-surface);
+  overflow: hidden;
+}
+
+.content {
+  display: flex;
+  flex-direction: column;
+}
+
+.cleanBanner,
+.driftBanner {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+  padding: var(--space-4);
+  font-size: 13px;
+  font-weight: 600;
+  flex-wrap: wrap;
+}
+
+.cleanBanner {
+  color: var(--color-credit);
+  background: var(--color-credit-bg);
+}
+
+.driftBanner {
+  color: var(--color-danger);
+  background: var(--color-danger-bg);
+}
+
+.generatedAt {
+  margin-left: auto;
+  font-weight: 400;
+  color: var(--color-text-faint);
+}
+
+.accountType {
+  font-weight: 600;
+}
+
+.accountId {
+  display: block;
+  font-size: 12px;
+  color: var(--color-text-faint);
+}
+
+.drift {
+  color: var(--color-danger);
+}
+
+.unbalancedSection {
+  border-top: 1px solid var(--color-border-strong);
+}
+
+.unbalancedTitle {
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--color-danger);
+  padding: var(--space-4) var(--space-4) 0;
+}

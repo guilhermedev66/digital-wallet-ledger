@@ -50,8 +50,10 @@ Status legend: `[ ]` not started, `[~]` in progress, `[x]` done.
 - [ ] Not yet wired to the real backend end-to-end (mock client only) - `VITE_API_BASE_URL`/`VITE_USE_MOCK_API` control the switch, see `src/api/index.ts`.
 
 ## M6 — Reporting / operational polish
-- [ ] Reconciliation view in UI, transaction detail view, filtering.
-- [ ] Only if it adds real portfolio value — no scope invented for its own sake.
+- [x] Reconciliation view - new `/reconciliation` page (nav + command palette entry), per-wallet: projected vs. independently-recomputed balance, drift, and any structurally-unbalanced transactions found (should always be empty given `Transaction.Post`'s invariant - shown if not, as the defense-in-depth signal it's meant to be). Chosen because ARCHITECTURE.md explicitly frames reconciliation as "the project's proof that the ledger is trustworthy," not an afterthought - real portfolio value, not scope padding.
+- [x] Transaction reversal action - "Reverse" button per eligible Activity row (hidden for `Reversal` rows and, best-effort from the currently-loaded page, for already-reversed ones - the backend's 409 is the real guard either way), inline confirm step, calls the M4 `POST .../reverse` endpoint. `mockClient.ts` mirrors the backend's self-service-only-when-it-debits-your-own-wallet authorization rule.
+- [ ] Transaction detail view, history filtering (fromUtc/toUtc/type) UI - not built; the backend supports both (see API_CONTRACT.md) but neither had enough remaining scope/time this session to justify the UI work - fair candidate for a future session.
+- Verified live in a real browser: fund → reverse → balance correctly returns to pre-funding value → reconciliation reports "Balanced," no console errors. Found and fixed one more responsive bug in the process: the header (now 4 nav items) overflowed at 768px (tablet) even though 320/375px were already fixed - the desktop single-row breakpoint didn't account for the added "Reconciliation" nav item. Raised the wrap threshold from 640px to 860px; re-verified no overflow at 320/375/640/768/860/900/1024/1440px.
 
 ## M7 — Security / production hardening / deployment
 - [ ] Full security gate pass (see CLAUDE.md), dependency + secret scan clean.

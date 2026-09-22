@@ -1,11 +1,14 @@
 import type {
+  AccountReconciliation,
   ApiClient,
   AuthSession,
   Currency,
   PagedResult,
+  ReconciliationReport,
   RegisteredUser,
   Transaction,
   TransferInput,
+  UnbalancedTransaction,
   Wallet,
   WalletBalance,
 } from './types'
@@ -170,6 +173,7 @@ export class MockApiClient implements ApiClient {
     idempotencyIndexKey: string,
     type: Transaction['type'],
     entries: Transaction['entries'],
+    reversalOfTransactionId: string | null = null,
   ): Transaction {
     const existingId = this.db.idempotencyIndex[idempotencyIndexKey]
     if (existingId) {
@@ -191,7 +195,7 @@ export class MockApiClient implements ApiClient {
       id: id('tx'),
       postedAtUtc: new Date().toISOString(),
       type,
-      reversalOfTransactionId: null,
+      reversalOfTransactionId,
       entries,
     }
     this.db.transactions.push(tx)
@@ -275,6 +279,110 @@ export class MockApiClient implements ApiClient {
         currency: to.currency,
       },
     ])
+  }
+
+  async reverseTransaction(
+    walletId: string,
+    transactionId: string,
+    idempotencyKey: string,
+  ): Promise<Transaction> {
+    await delay()
+    const userId = this.requireAuth()
+    const wallet = this.db.wallets.find((w) => w.id === walletId && w.ownerUserId === userId)
+    if (!wallet) throw new ApiError('Wallet not found.', 404, 'not_found')
+
+    const original = this.db.transactions.find(
+      (t) => t.id === transactionId && t.entries.some((e) => e.accountId === walletId),
+    )
+    if (!original) throw new ApiError('Transaction not found.', 404, 'not_found')
+    if (original.type === 'Reversal') {
+      throw new ApiError('Cannot reverse a reversal transaction.', 400, 'reversal_of_reversal')
+    }
+
+    // Same authorization rule as the real backend's ReverseTransactionHandler (no admin
+    // concept in this demo, so this mirrors the non-admin path only): self-service reversal
+    // only works when it debits the CALLER's own wallet - see MEMORY.md "Reversal authorization".
+    const debitedEntry = original.entries.find((e) => e.direction === 'Debit')
+    if (!debitedEntry) throw new ApiError('Malformed transaction.', 500, 'no_debit_entry')
+    const affectedWallet = this.db.wallets.find((w) => w.id === debitedEntry.accountId)
+    if (!affectedWallet || affectedWallet.ownerUserId !== userId) {
+      throw new ApiError('Transaction not found.', 404, 'not_found')
+    }
+
+    const indexKey = `${userId}:${idempotencyKey}`
+    if (!this.db.idempotencyIndex[indexKey]) {
+      const alreadyReversed = this.db.transactions.some(
+        (t) => t.type === 'Reversal' && t.reversalOfTransactionId === original.id,
+      )
+      if (alreadyReversed) {
+        throw new ApiError('This transaction has already been reversed.', 409, 'already_reversed')
+      }
+      const available = walletBalance(this.db, debitedEntry.accountId)
+      if (available < debitedEntry.amountMinorUnits) {
+        throw new ApiError('Insufficient funds to reverse this transaction.', 422, 'insufficient_funds')
+      }
+    }
+
+    const mirror = (direction: Transaction['entries'][number]['direction']) =>
+      direction === 'Debit' ? 'Credit' : 'Debit'
+
+    return this.postTransaction(
+      indexKey,
+      'Reversal',
+      original.entries.map((e) => ({ ...e, direction: mirror(e.direction) })),
+      original.id,
+    )
+  }
+
+  async getWalletReconciliation(walletId: string): Promise<ReconciliationReport> {
+    await delay()
+    const userId = this.requireAuth()
+    const wallet = this.db.wallets.find((w) => w.id === walletId && w.ownerUserId === userId)
+    if (!wallet) throw new ApiError('Wallet not found.', 404, 'not_found')
+
+    // Independently recomputed from raw entries, same as the real backend's
+    // ReconciliationEngine - walletBalance() IS that computation here (this demo has no
+    // separate cached projection to compare against), so drift is always 0 by construction;
+    // the shape still matches the real report so a future divergence would show correctly.
+    const recomputed = walletBalance(this.db, walletId)
+    const account: AccountReconciliation = {
+      accountId: wallet.id,
+      accountType: 'UserWallet',
+      currency: wallet.currency,
+      projectedBalanceMinorUnits: recomputed,
+      recomputedBalanceMinorUnits: recomputed,
+      driftMinorUnits: 0,
+      isBalanced: true,
+    }
+
+    const touching = this.db.transactions.filter((t) => t.entries.some((e) => e.accountId === walletId))
+    const unbalancedTransactions: UnbalancedTransaction[] = []
+    for (const t of touching) {
+      const byCurrency = new Map<Currency, { debits: number; credits: number }>()
+      for (const e of t.entries) {
+        const bucket = byCurrency.get(e.currency) ?? { debits: 0, credits: 0 }
+        if (e.direction === 'Debit') bucket.debits += e.amountMinorUnits
+        else bucket.credits += e.amountMinorUnits
+        byCurrency.set(e.currency, bucket)
+      }
+      for (const [currency, { debits, credits }] of byCurrency) {
+        if (debits !== credits) {
+          unbalancedTransactions.push({
+            transactionId: t.id,
+            currency,
+            totalDebitMinorUnits: debits,
+            totalCreditMinorUnits: credits,
+          })
+        }
+      }
+    }
+
+    return {
+      generatedAtUtc: new Date().toISOString(),
+      accounts: [account],
+      unbalancedTransactions,
+      isClean: account.isBalanced && unbalancedTransactions.length === 0,
+    }
   }
 
   async getHistory(walletId: string, page = 1, pageSize = 20): Promise<PagedResult<Transaction>> {

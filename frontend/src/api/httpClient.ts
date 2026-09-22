@@ -3,6 +3,7 @@ import type {
   AuthSession,
   Currency,
   PagedResult,
+  ReconciliationReport,
   RegisteredUser,
   Transaction,
   TransferInput,
@@ -107,5 +108,16 @@ export class HttpApiClient implements ApiClient {
   getHistory(walletId: string, page = 1, pageSize = 20) {
     const params = new URLSearchParams({ page: String(page), pageSize: String(pageSize) })
     return this.request<PagedResult<Transaction>>(`/api/wallets/${walletId}/history?${params}`)
+  }
+
+  reverseTransaction(walletId: string, transactionId: string, idempotencyKey: string) {
+    return this.request<Transaction>(
+      `/api/wallets/${walletId}/transactions/${transactionId}/reverse`,
+      { method: 'POST', headers: { 'Idempotency-Key': idempotencyKey } },
+    )
+  }
+
+  getWalletReconciliation(walletId: string) {
+    return this.request<ReconciliationReport>(`/api/wallets/${walletId}/reconciliation`)
   }
 }
