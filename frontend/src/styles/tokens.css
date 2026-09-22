@@ -1,0 +1,67 @@
+:root {
+  color-scheme: light dark;
+
+  --font-ui: 'IBM Plex Sans', -apple-system, 'Segoe UI', Roboto, sans-serif;
+  --font-mono: 'IBM Plex Mono', ui-monospace, 'SFMono-Regular', Consolas, monospace;
+
+  --color-bg: #f6f5f1;
+  --color-surface: #ffffff;
+  --color-surface-sunken: #efede6;
+  --color-border: #d9d5c9;
+  --color-border-strong: #b6b1a0;
+  --color-text: #1c1a12;
+  --color-text-muted: #5c584a;
+  --color-text-faint: #8b8674;
+
+  --color-accent: #8a5c00;
+  --color-accent-strong: #6e4a00;
+  --color-accent-contrast: #fffaf0;
+
+  --color-credit: #2c6b48;
+  --color-credit-bg: #e7f2ea;
+  --color-debit: #1c1a12;
+  --color-danger: #a03a2c;
+  --color-danger-bg: #faeae6;
+  --color-pending: #8a5c00;
+  --color-pending-bg: #faf1dc;
+
+  --radius-sm: 3px;
+  --radius-md: 5px;
+
+  --space-1: 4px;
+  --space-2: 8px;
+  --space-3: 12px;
+  --space-4: 16px;
+  --space-5: 24px;
+  --space-6: 32px;
+  --space-7: 48px;
+  --space-8: 64px;
+
+  --shell-max-width: 1180px;
+  --focus-ring-color: var(--color-accent);
+}
+
+@media (prefers-color-scheme: dark) {
+  :root {
+    --color-bg: #131210;
+    --color-surface: #1b1a16;
+    --color-surface-sunken: #0f0e0c;
+    --color-border: #34322a;
+    --color-border-strong: #4b4839;
+    --color-text: #f1efe6;
+    --color-text-muted: #b8b39f;
+    --color-text-faint: #837e6a;
+
+    --color-accent: #e3b13f;
+    --color-accent-strong: #f3c765;
+    --color-accent-contrast: #1a1408;
+
+    --color-credit: #6fbf8e;
+    --color-credit-bg: #17281e;
+    --color-debit: #f1efe6;
+    --color-danger: #e18a75;
+    --color-danger-bg: #331d17;
+    --color-pending: #e3b13f;
+    --color-pending-bg: #332a10;
+  }
+}
