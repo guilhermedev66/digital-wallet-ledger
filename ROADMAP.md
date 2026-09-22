@@ -56,7 +56,22 @@ Status legend: `[ ]` not started, `[~]` in progress, `[x]` done.
 - Verified live in a real browser: fund → reverse → balance correctly returns to pre-funding value → reconciliation reports "Balanced," no console errors. Found and fixed one more responsive bug in the process: the header (now 4 nav items) overflowed at 768px (tablet) even though 320/375px were already fixed - the desktop single-row breakpoint didn't account for the added "Reconciliation" nav item. Raised the wrap threshold from 640px to 860px; re-verified no overflow at 320/375/640/768/860/900/1024/1440px.
 
 ## M7 — Security / production hardening / deployment
-- [ ] Full security gate pass (see CLAUDE.md), dependency + secret scan clean.
+- [x] Full security gate pass (see CLAUDE.md), dependency + secret scan clean - read-only,
+  covering everything not already hit by the two narrower audits earlier this session (M1-M3
+  backend, M5 frontend): dependency scan (`dotnet list package --vulnerable
+  --include-transitive` across all 7 backend projects, `npm audit` incl. devDependencies - 0
+  vulnerable packages either side), full-git-history secret scan (45 commits, `git log -p
+  --all` grepped for key/credential/connection-string patterns - only the known-non-secret
+  throwaway dev password and test fixture password turned up, no `.env`/`.pem`/`.key` ever
+  committed; CI's `gitleaks-action` is configured but hasn't run yet, no GitHub remote), a
+  full RBAC/tenant-isolation matrix (anonymous/owner/non-owner/admin) traced across every
+  endpoint including M4's reversal/reconciliation surface, SQL injection (one raw-SQL call
+  site, parameterized, not injectable), CSRF (N/A, stateless Bearer auth), upload
+  authorization (N/A, no upload feature). 1 IMPORTANT finding (`ReverseTransactionHandler`'s
+  admin bypass only covers the second of two ownership checks, so an admin can't actually
+  exercise the documented cross-user reversal power yet), 6 OPTIONAL (mostly test-coverage
+  gaps and pre-deployment items correctly deferred to the Deployment line below). Handed off
+  for fixing (see MEMORY.md); revalidate here once that lands.
 - [x] Rate limiting, CORS, security headers, prod error handling (no stack traces to client) -
   fixing a read-only audit's findings (handoff from a peer session, not a fresh audit this
   session): rate limiting on `/api/auth/login`/`register` (`[EnableRateLimiting("auth")]`,
