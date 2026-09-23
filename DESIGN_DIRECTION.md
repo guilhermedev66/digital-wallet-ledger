@@ -1,208 +1,186 @@
 # Design Direction
 
-UX/visual research for the frontend (M5). Produced by the peer session assigned
-UX Research / Frontend (see MEMORY.md "Multi-agent topology"). No dedicated
-research tool ("Antigravity") exists in this environment — this is real desk
-research done with WebSearch, synthesized against the product's actual
-architecture (`ARCHITECTURE.md`).
+Frontend visual redesign milestone (post-M7). Selected by Claude Code (Orchestrator)
+jointly with the "Claude — Frontend / UI" peer session, based on real firsthand visual
+research performed by the "Antigravity" agent (browser-based inspection of Inspora,
+Refero Styles, and Spell — not desk research from memory). Full raw research and all
+three candidate directions in complete detail are preserved in git history / session
+logs; this document captures the decision, the rationale, and the rejected
+alternatives per the brief.
 
-**Research method / honesty note:** findings below come from web search result
-snippets covering named products and design-blog case studies, not from
-firsthand screenshots or scraped pages. Where a claim traces to a specific
-source it's cited; where it's this session's own synthesis/extrapolation
-(mainly all of Direction 3) it's flagged as such. Treat product specifics as
-secondhand descriptions, not verified pixel references — worth a firsthand
-look before copying anything literally.
+This supersedes the previous version of this file, which was produced by desk
+research only (no live browsing) because no research tool was connected at the time.
+That earlier pass independently landed on the same conceptual direction
+("Ledger-as-Instrument") that real visual research now confirms below — noted as a
+convergence signal, not used as a reason to pick it on its own.
 
-## Why this matters for this product specifically
+The full raw research (Antigravity's complete direction-by-direction writeup) and a
+precise draft token spec for all three candidates existed as two extra files at repo
+root (`DESIGN_RESEARCH_FINDINGS.md`, `DESIGN_TOKENS_PROPOSAL.md`) during this
+milestone's research pass. Their Direction-1-relevant content is now folded into this
+document and into `frontend/src/styles/tokens.css` directly; both files were removed,
+uncommitted, before this document's own commit, rather than kept as a third and
+fourth overlapping design doc — so this repo's history never carries the raw
+Direction 2/3 detail (rejected) as a separate artifact. It's fully reproducible from
+the same live sources (Refero Styles, Inspora, Spell) cited below if ever needed
+again; it isn't preserved here on the assumption that it won't be.
 
-The brief is explicit: this is a **portfolio piece whose engineering
-centerpiece is ledger correctness** — immutable entries, derived balances,
-atomic transfers, reconciliation — not visual flash, and the user explicitly
-does not want the frontend to read as another generic AI-SaaS dashboard
-(purple gradients, glassmorphism cards, icon-sidebar-plus-stat-tiles). That
-constraint should shape the *choice*, not just be a style filter applied
-after the fact: the strongest direction is one where the UI's visual identity
-and the product's actual substance (double-entry bookkeeping, trustworthy
-history, nothing ever silently mutated) point the same way.
+## Selected: Direction 1 — "The Ledger Terminal"
 
-## Research findings (reference points)
+A developer/quant-grade, high-density financial instrument (Bloomberg Terminal /
+Linear / Brex-inspired). The interface does not hide the double-entry accounting
+engine behind a simplified consumer gloss — it shows it. Both legs of every
+transaction (debit + credit), running derived balances, and live
+`Σ Debits = Σ Credits` verification are visible on the primary surfaces, not tucked
+behind a detail view. This is the only one of the three candidates where the visual
+language directly demonstrates the product's actual claim — balances are derived,
+never stored, and the ledger is the source of truth — rather than merely avoiding a
+generic look through restraint (Direction 2) or energy (Direction 3).
 
-- **Ramp** — black-and-white editorial system with a single highlighter-yellow
-  accent used only where money moves (CTAs, live counters, active states);
-  single-weight neo-grotesque type; "bento box" product-graphic grids.
-- **Mercury** — near-monochrome (#1B1B1F + off-white + grays), product
-  screenshots treated as editorial photography rather than UI chrome — reads
-  closer to a luxury-goods brand than a bank.
-- **Robinhood** (2023 rebrand) — custom sans ("Phonic") paired with a serif
-  ("Martina Plantijn") for headlines: an explicit serif+sans pairing in a
-  finance-trust context, rather than the usual all-sans SaaS look.
-- **Wise** (2023–24 brand refresh / "Editorial Design System") — the source
-  material explicitly names the problem this research is trying to avoid:
-  fintech converging on "a sea of sameness," and describes moving toward
-  illustration, distinct iconography, and a multi-brand token system as the
-  fix.
-- **Bloomberg Terminal** — the standing reference for information density as
-  a deliberate, legitimate design stance: no whitespace, everything visible
-  at once, "shows you everything and trusts you to figure it out." Relevant
-  because this product's whole point is showing its own correctness rather
-  than hiding structure behind a simplified consumer gloss.
-- **`ledger-cli`** (plain-text, CLI-only double-entry accounting tool) —
-  confirms "terminal-native ledger" is a real, existing pattern in the
-  accounting-software space, not an aesthetic borrowed wholesale from trading
-  platforms.
-- **Command palette (Cmd/Ctrl-K)** — an established *supplement* to visible
-  navigation, not a full replacement for it; pairs with a thin structural nav
-  for discoverability.
-- **Typography for financial numerals** — consensus from type-design sources:
-  `font-variant-numeric: tabular-nums` on a proportional sans usually beats
-  switching the whole UI to monospace; monospace is best used selectively
-  (hero figures, transaction IDs, timestamps), not globally. Numeral glyph
-  shapes should avoid 1/I and 0/O ambiguity.
-- **WCAG for financial UI** — 4.5:1 minimum text contrast; state (approved /
-  pending / reversed) must never be color-only — pair with icon + text label,
-  called out specifically for status badges and transaction states.
-- **Brutalism-in-finance risk** — multiple sources warn that raw/undisciplined
-  brutalist UI reads as untrustworthy for money products *unless* the
-  starkness clearly signals competence rather than neglect (the
-  Bloomberg/`ledger-cli` precedents show austere ≠ untrustworthy when it's
-  deliberate).
+### Rationale
+- Matches the user's explicitly requested palette (black/near-black, charcoal/
+  graphite, warm gray, orange, amber/yellow, off-white/white) almost exactly, with no
+  forcing — Direction 2 and 3's palettes required more interpretation to fit it.
+- Highest scores on Antigravity's own comparison matrix: engineering credibility
+  (5/5), portfolio differentiation (5/5), lowest risk of drifting into a recognizable
+  clone of an existing fintech product.
+- Lowest execution risk: borders + tables + `tabular-nums` typography is more
+  reliably buildable to a high-polish bar than Direction 2's serif/warm-gradient
+  pairing (which also needs open-font substitutes for its recommended commercial
+  typefaces) or Direction 3's spring-physics bento grid.
+- Direct product fit: this portfolio's engineering centerpiece is ledger
+  correctness, not visual flash — Direction 1 is the direction where the UI argument
+  and the engineering argument are the same argument.
+- Confirmed independently by both the Orchestrator and the Frontend implementer
+  after reading the full research against the actual current codebase.
 
-## Three directions
+### Rejected alternatives
+- **Direction 2 — "Editorial Vault & Parchment"** (Swiss-private-banking / archival
+  bookkeeping-journal aesthetic, serif headline balances, warm brass/terracotta
+  accents). Genuinely distinctive and credible, but: doesn't match the requested
+  palette without reinterpretation, needs commercial-font substitution
+  (Ivy Presto/Flecha → Newsreader/Fraunces/Playfair/Instrument Serif), and doesn't
+  visually demonstrate double-entry mechanics the way Direction 1 does — it earns
+  trust through restraint rather than through showing the proof.
+- **Direction 3 — "Neo-Kinetic Clean Treasury"** (Ramp/Brex/Awesomic-inspired
+  bento-grid, spring-physics motion, electric orange/amber/mint accents). Highest
+  polish ceiling but the highest risk of reading as "another modern fintech SaaS
+  dashboard" per Antigravity's own scoring (3.5/5 differentiation, explicitly flagged
+  as risking a Ramp/Mercury clone) — the thing this milestone is trying to move away
+  from. Kinetic spring motion also sits close to the "gimmicky portfolio-demo
+  behavior" the brief explicitly warns against.
 
-### 1. Ledger-as-Instrument — data-dense, terminal-adjacent, trust-through-transparency
+## Palette
 
-**Visual philosophy.** The UI doesn't hide the double-entry model behind a
-simplified "consumer fintech" gloss — it shows it. Debits, credits, and
-running balances are visible on the main dashboard, not tucked behind a
-"view details" tap. Correctness is the product; the UI's job is to make that
-legible, the way `ledger-cli` and a trading terminal make their data legible
-by refusing to compress it.
+Implemented in `frontend/src/styles/tokens.css`. Dark is the unconditional `:root`
+default (not gated behind `prefers-color-scheme: dark`) — light is the override,
+under `prefers-color-scheme: light` — so dark is what actually renders by default,
+matching "dark (primary theme)" rather than just being labeled that way while an
+unset-OS-preference browser would still see paper.
 
-- **Navigation model.** A thin, always-visible structural nav (not an icon
-  sidebar) plus a Cmd/Ctrl-K command palette as the primary way power users
-  move around (jump to a wallet, start a transfer, search a transaction).
-  The palette supplements the nav; it doesn't replace it — first-time users
-  still see labeled destinations.
-- **Information density.** High. The dashboard is a ledger view first: a
-  computed balance header above a real entry table (date, direction,
-  counterparty, amount, running balance), not an isolated "stat tile" divorced
-  from the data that produced it.
-- **Typography.** Proportional UI sans for labels/body; `tabular-nums` for
-  all amounts (not full monospace UI); true monospace reserved for
-  transaction IDs, idempotency keys, and timestamps — where it signals "this
-  is a precise machine-verifiable value," not decoration.
-- **Component language.** Tables and rules, not cards and shadows. Borders
-  over drop-shadows. Status conveyed via icon + text label + color together
-  (never color alone), per the WCAG finding above.
-- **Motion philosophy.** Near-none. Values update instantly or via a brief
-  numeric tick on change. No card transitions, no parallax, no decorative
-  easing. Motion is only ever a signal that something changed — never
-  ambience.
-- **Dashboard approach.** Single scrollable ledger-first view. Balance is a
-  computed header derived from visible entries below it, reinforcing (not
-  just asserting) that the number is trustworthy.
-- **Mobile approach.** The entry table becomes a stacked list at ~320px but
-  keeps debit/credit labeling explicit — information is re-flowed, never
-  dropped, at small widths.
-- **Accessibility notes.** Strong by default (high-contrast, text-first), but
-  dense tables need real `<table>`/ARIA semantics for screen readers and a
-  skip-to-content link given how much is on one screen.
-- **Differentiator vs. generic SaaS.** Directly opposite instinct from
-  card-grid dashboards: shows the mechanism instead of abstracting it away.
-  For a project whose entire pitch is "the ledger is the source of truth,"
-  this is the direction where the UI argument and the engineering argument
-  are the same argument.
+**Dark (primary theme):**
+| Token | Value | CSS variable | Use |
+|---|---|---|---|
+| Void Black | `#08090A` | `--color-bg` | App background |
+| Carbon Plate | `#111215` | `--color-surface` | Panel / card surface |
+| Graphite Card | `#181A1F` | `--color-surface-elevated` | Stepped-up surface (nested panels — e.g. the 3-column workspace's inspector) |
+| — | `#060708` | `--color-surface-sunken` | Recessed surface (hover rows, sunken inputs) |
+| Hairline Border | `#242730` | `--color-border` | Structural borders/rules |
+| — | `#3D4454` | `--color-border-strong` | Emphasized borders (panel edges, active dividers) |
+| Crisp White | `#F0F2F5` | `--color-text` | Primary text; also the Debit-leg value color (neutral ink, no accent) |
+| Muted Ash | `#8B909A` | `--color-text-muted` | Secondary text |
+| Faint Hairline | `#484D58` | `--color-text-faint` | Tertiary/disabled text |
+| Precision Ember | `#FF5500` | `--color-accent` / `--color-accent-strong: #FF7A33` | Money-in-motion only — primary CTAs, active transfer state |
+| Ledger Amber | `#FFB020` | `--color-pending` | Pending states, idempotency keys, reconciliation warnings |
+| Balanced Emerald | `#00C853` | `--color-credit` | Zero-drift verification *and* the Credit-leg value color — same semantic (positive/clean), reusing this file's pre-existing `credit` = "balanced" convention (see `ReconciliationPage`'s clean banner) rather than adding a fourth accent |
 
-### 2. Editorial Calm — restrained monochrome + single accent (Mercury/Ramp/Robinhood-derived)
+**Light theme (not an inversion — separately designed):**
+| Token | Value | CSS variable | Use |
+|---|---|---|---|
+| Cold Paper | `#F8F9FA` | `--color-bg` | App background |
+| Crisp Slate | `#FFFFFF` | `--color-surface` | Panel / card surface |
+| — | `#F1F3F5` | `--color-surface-elevated` | Stepped-up surface |
+| — | `#DEE2E6` | `--color-surface-sunken` | Recessed surface |
+| Border | `#D8DEE4` | `--color-border` | Structural borders/rules |
+| — | `#ADB5BD` | `--color-border-strong` | Emphasized borders |
+| Deep Charcoal Ink | `#16181D` | `--color-text` | Primary text / Debit-leg value color |
+| — | `#495057` | `--color-text-muted` | Secondary text |
+| — | `#868E96` | `--color-text-faint` | Tertiary/disabled text |
+| Ember (light-tuned) | `#E04B00` | `--color-accent` / `--color-accent-strong: #B93D00` | Same role as dark, contrast-checked against white |
+| Amber (light-tuned) | `#D97706` | `--color-pending` | Same role |
+| Emerald (light-tuned) | `#059669` | `--color-credit` | Same role |
 
-**Visual philosophy.** Confidence through restraint and typographic quality
-rather than decoration. One hero number (current balance) given real
-typographic weight; everything else recedes.
+`--color-danger` (`#FF4D4F` dark / `#DC2626` light) exists as a fourth semantic color
+for hard failures (reversal errors, validation) — distinct from the Ember/Amber/
+Emerald trio above, which is reserved strictly for ledger-state signals per the
+"never decorative" rule below.
 
-- **Navigation model.** Simple top nav or a slim left rail; few destinations
-  (this product doesn't need twenty nav items — wallets, transfers, activity,
-  done). Generous whitespace.
-- **Information density.** Low-to-medium. One prominent balance, supporting
-  data in a calm secondary hierarchy below it.
-- **Typography.** A serif or distinctive display face for the balance/
-  headline figures (Robinhood-style serif+sans pairing), a clean grotesk for
-  body/labels/nav — explicitly not "system sans everywhere."
-- **Component language.** Near-monochrome (off-white / near-black), a single
-  accent color used *only* on actionable/state elements (Ramp's
-  "yellow-only-where-money-moves" rule) — never a decorative gradient.
-- **Motion philosophy.** Subtle, restrained cross-fades and reveals. Calm,
-  not bouncy — motion functions as a trust signal ("nothing sudden happens
-  to your money"), not as delight-for-its-own-sake.
-- **Dashboard approach.** Editorial framing of the balance (generous margin,
-  careful crop/composition if any imagery is used at all), a plain, legible
-  transaction list beneath it.
-- **Mobile approach.** Single column, generous padding that compresses
-  gracefully; the accent color's usage stays disciplined even at small sizes
-  (no accent-everywhere at narrow widths).
-- **Accessibility notes.** The monochrome-plus-one-accent palette needs the
-  accent contrast-checked against both a light and a dark surface; status
-  still needs icon+label, not color alone.
-- **Differentiator vs. generic SaaS.** The explicit anti-gradient,
-  anti-glassmorphism direction — but it's the direction with the most
-  execution risk: without a genuinely distinctive type or accent choice it
-  can drift into "another Stripe/Mercury clone," which is itself a
-  now-recognizable fintech-SaaS look.
+Color discipline: the accent trio is never decorative. Ember appears only on
+actionable money-moving elements; Amber only on pending/warning states; Emerald
+only on verified-balanced states. Status is always paired with an icon + text label,
+never color alone (WCAG requirement carried over from the original research).
 
-### 3. Structural / Plain-Spoken — utility-grade, honest-by-construction
+Radius is `--radius-sm: 1px` / `--radius-md: 2px` (both themes, "zero to 2px" per
+this direction). `--shell-max-width` is `1440px`, up from the previous 1180px, to
+close most of the ~50% viewport void the original research flagged — though the
+full edge-to-edge 3-column workspace layout is separate, later page-level work, not
+part of the token rewrite.
 
-*Most speculative of the three — synthesized from accessibility literature
-and the brutalism-risk warning above rather than a named fintech case study;
-flagged here rather than presented as a validated pattern.*
+## Typography
 
-**Visual philosophy.** Rejects "fintech-as-lifestyle-brand" outright. Reads
-like a well-built public utility or tax-software product — credible because
-it's plain, not because it's polished.
+- **UI sans:** Geist Sans (or IBM Plex Sans as fallback) — medium/semibold, tight
+  tracking (`-0.015em`) for labels, nav, body text.
+- **Ledger monospace:** Geist Mono (or IBM Plex Mono) with
+  `font-variant-numeric: tabular-nums` applied to all currency amounts, timestamps,
+  idempotency keys, and account/transaction IDs — signals "machine-verifiable value,"
+  not decoration.
 
-- **Navigation model.** Plain labeled text links/tabs, no icon-only nav —
-  everything spelled out in words.
-- **Information density.** Medium, organized as clearly labeled sections/
-  forms rather than dashboard widgets.
-- **Typography.** One highly legible, slightly unusual workhorse sans or
-  slab at a restrained size scale; no display/decorative face.
-- **Component language.** Flat, bordered, no shadows, no rounded-card motif.
-  Buttons and inputs look like form controls, not marketing surfaces.
-- **Motion philosophy.** Functional only — focus rings, state changes.
-  Deliberately unpolished in the "flashy" sense, polished in the "fast and
-  works everywhere" sense.
-- **Dashboard approach.** Numbers shown in context with their derivation
-  inline, rather than isolated stat tiles — the ledger-correctness story told
-  through plainness instead of Direction 1's density.
-- **Mobile approach.** Trivial to reflow — it's already table/form-based
-  rather than widget-based.
-- **Accessibility notes.** Strongest of the three by construction; this
-  direction and WCAG compliance are nearly the same goal.
-- **Differentiator vs. generic SaaS.** Genuinely uncommon portfolio choice —
-  "credible because boring" in a space saturated with polish. Real risk:
-  can under-sell the engineering work if it reads as *merely* plain rather
-  than deliberately so.
+## Layout & component language
 
-## Decision
+- Edge-to-edge desktop layout, `max-width: 1440px` (current app wastes ~50% of a
+  1080p/1440p viewport inside a fixed 1126px centered column — this is corrected).
+- Slim structural command rail (not an icon sidebar) with a live telemetry indicator
+  and labeled nav; `⌘/Ctrl-K` command palette as a supplement, never a replacement.
+- Zero to 2px border-radius. 1px structural borders (`var(--border)`). No drop
+  shadows — depth via surface stepping (background → elevated → card) instead.
+- Wallets presented as "Account Nodes": name + monospaced UUID (with copy action),
+  large tabular balance, a real telemetry subline (entry count, last activity) —
+  never an isolated stat tile divorced from the ledger that produced it.
+- Transactions show both entry legs (Debit + Credit), not just the caller's side,
+  plus the running derived balance after each entry.
+- Transfer flow: explicit FROM / TO / AMOUNT / CURRENCY, a live preview of the exact
+  ledger entries about to be posted, explicit idempotency key visibility, before
+  commit.
+- Mobile (<640px): the existing `Table.module.css` stacked-row pattern (a
+  `data-label`-driven labeled flex row, no JS, already screen-reader-correct) is
+  extended to emit two labeled sub-rows (Debit leg / Credit leg) per transaction
+  block, rather than introducing a new accordion/collapsible component. Cheaper to
+  build, and consistent with this direction's own "information re-flowed, never
+  hidden" rule — an explicit revision Antigravity's raw research did not consider,
+  made jointly by the Orchestrator and Frontend implementer against the real
+  codebase.
 
-Per the assigning session's instruction not to block Task 2 on a reply: no
-response arrived by the time this document and the research behind it were
-the only remaining blocker, so this session is picking.
+## Interaction / motion principles
 
-**Chosen: Direction 1 — Ledger-as-Instrument.**
+Near-zero ambient motion. 80–120ms transitions. Values update instantly or via a
+brief numeric tick/slide on change. No card transitions, no parallax, no decorative
+easing — motion is only ever a signal that something changed, never ambience.
+Respect `prefers-reduced-motion`.
 
-Rationale: the project's own stated centerpiece is that "the ledger is the
-source of truth" and balances are *derived*, never stored — Direction 1 is
-the only one of the three where the visual design directly demonstrates that
-claim (visible entries, visible running balance, visible debit/credit
-structure) rather than merely avoiding generic patterns while asserting
-trustworthiness through restraint (Direction 2) or plainness (Direction 3).
-It also has the strongest, most concrete precedent (Bloomberg Terminal,
-`ledger-cli`) of the three, and the least execution risk of drifting into a
-"clone" of an existing product, which Direction 2 was flagged as risking.
+## Source inspirations (from Antigravity's live research)
 
-This is a call, not a locked decision — if the other session responds with a
-different preference before frontend work is far along, it's cheap to revisit
-the token/typography layer and expensive to revisit page structure, so raise
-it sooner rather than later.
+- **Refero Styles:** Linear ("midnight precision instrument" — density without
+  clutter, monospaced metadata, `⌘K`) combined with Brex ("white concrete, single
+  ember" — extreme restraint, accent reserved strictly for execution/state triggers).
+- **Inspora:** `/posts/composer-mockup` (dense dual-pane workspace composition),
+  `/posts/sidebar-active-state` (tight sliding-pill nav indicator on dark rails).
+- **Spell:** `kbd` keyboard-shortcut badges for nav/actions, Copy Button for wallet
+  UUIDs/transaction IDs/idempotency keys, Flow Button for the transfer-commit action.
 
-M5 frontend implementation proceeds against Direction 1.
+## Next steps
+
+Token rewrite (`frontend/src/styles/tokens.css` → this palette; delete the dead
+default-template `index.css`) is the first implementation task, owned by
+Claude — Frontend / UI. Subsequent redesign work proceeds page by page against this
+document. Real-browser QA (both themes, representative viewports) is performed by
+Antigravity once pages are implemented, per the milestone's workflow.

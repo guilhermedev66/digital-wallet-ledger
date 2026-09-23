@@ -490,6 +490,7 @@ frontend/coverage/
 
 # Local agent/CLI config (not project-shared)
 .codex/
+.claude/
 
 # Local secrets
 *.env
