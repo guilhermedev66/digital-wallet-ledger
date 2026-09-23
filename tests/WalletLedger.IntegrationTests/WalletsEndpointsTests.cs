@@ -48,8 +48,10 @@ public sealed class WalletsEndpointsTests(PostgresContainerFixture postgres)
         Assert.Equal("My wallet", fetched.DisplayName);
     }
 
-    [Fact]
-    public async Task Create_CommaCombinedCurrencyValue_ReturnsBadRequest()
+    [Theory]
+    [InlineData("Usd,Brl")]
+    [InlineData("Usd,Eur")]
+    public async Task Create_CommaCombinedCurrencyValue_ReturnsBadRequest(string currency)
     {
         // M7 security gate finding: Enum.TryParse alone accepts comma-combined values on a
         // non-[Flags] enum by OR-ing their underlying numbers - "Usd,Brl" would otherwise
@@ -57,8 +59,26 @@ public sealed class WalletsEndpointsTests(PostgresContainerFixture postgres)
         using var client = CreateClient();
         Authorize(client, await RegisterAndLoginAsync(client, UniqueEmail()));
 
-        var response = await client.PostAsJsonAsync("/api/wallets", new CreateWalletRequest("Usd,Brl", "Should be rejected"));
+        var response = await client.PostAsJsonAsync("/api/wallets", new CreateWalletRequest(currency, "Should be rejected"));
 
         Assert.Equal(HttpStatusCode.BadRequest, response.StatusCode);
+    }
+
+    [Theory]
+    [InlineData("Eur")]
+    [InlineData("Gbp")]
+    [InlineData("Chf")]
+    [InlineData("Cad")]
+    [InlineData("Aud")]
+    public async Task Create_NewSupportedCurrency_Succeeds(string currency)
+    {
+        using var client = CreateClient();
+        Authorize(client, await RegisterAndLoginAsync(client, UniqueEmail()));
+
+        var response = await client.PostAsJsonAsync("/api/wallets", new CreateWalletRequest(currency, "New currency wallet"));
+
+        Assert.Equal(HttpStatusCode.Created, response.StatusCode);
+        var created = await response.Content.ReadFromJsonAsync<WalletDto>();
+        Assert.Equal(currency, created!.Currency);
     }
 }
