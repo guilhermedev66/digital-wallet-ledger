@@ -3,12 +3,22 @@
 Only what's expensive to relearn. See ROADMAP.md for status, ARCHITECTURE.md for the
 financial/domain model and why.
 
-## Environment reality (2026-09-21)
+## Environment reality (2026-09-21, Docker note superseded 2026-09-23)
 
-- This WSL distro has no `docker` CLI (Docker Desktop's WSL integration isn't
-  enabled for it). `docker-compose` / Testcontainers work in CI but not locally
-  until the user enables the integration. Don't assume Docker is usable here
-  without checking first.
+- Docker is usable locally after all: plain `docker` isn't on PATH in this WSL
+  distro, but `docker.exe` (Docker Desktop's Windows binary) is, at
+  `/mnt/c/Users/<user>/AppData/Local/Programs/DockerDesktop/resources/bin/docker.exe`.
+  If Docker Desktop isn't already running, launch it
+  (`powershell.exe -Command "Start-Process 'C:\Program Files\Docker\Docker\Docker Desktop.exe'"`)
+  and wait for `docker.exe ps` to stop erroring before using `docker.exe compose up -d`.
+  `docker compose` (no `.exe`) still doesn't exist in this shell - always use
+  `docker.exe`. Once Postgres is up, `dotnet ef database update --project
+  src/WalletLedger.Infrastructure --startup-project src/WalletLedger.Infrastructure`
+  applies migrations (the Api project isn't a valid `--startup-project` target - it
+  doesn't reference `Microsoft.EntityFrameworkCore.Design`; Infrastructure has the
+  design-time factory). Confirmed 2026-09-23: full suite (54+90+58 tests) green
+  against real Postgres via Testcontainers for the first time this project has ever
+  run it outside CI.
 - `dotnet new sln` on this SDK (10.0.401) generates `.slnx`, not `.sln`. Build with
   `dotnet build WalletLedger.slnx`.
 - `dotnet` in this shell is a wrapper (`~/.local/bin/dotnet`) that execs the Windows
@@ -25,18 +35,41 @@ financial/domain model and why.
 - `dotnet user-secrets` works fine here for local JWT signing key / connection string
   (no Docker/network dependency) — this is the established pattern for local secrets
   in this repo; never put real values in `appsettings*.json`.
+- Vite's dev server (`frontend/`) does NOT reliably pick up file edits on this repo's
+  `/mnt/c/...` (Windows-mounted) path — a plain HMR update or even a hard
+  `location.reload()` can keep serving a stale transform of a file that was already
+  saved with new content on disk (confirmed twice in the M8 session: an edited
+  component kept rendering its pre-edit JSX after multiple reloads). Root cause not
+  fully diagnosed (likely mtime-granularity or inotify not propagating from Windows to
+  WSL for `/mnt/c`), but the reliable fix is: kill the dev server, `rm -rf
+  frontend/node_modules/.vite`, restart `npm run dev`. Don't trust a live-reloaded
+  browser check of a just-edited file without this if the change doesn't show up -
+  it's the cache, not a wrong edit.
 
 ## Multi-agent topology (actual, not aspirational)
 
-The original build brief assumed a Maestro roster with named specialist roles
-(Codex Backend, Codex QA, Antigravity, Security QA, a Shell-only worker). On
-inspection, none of that existed: `ListAgents` showed two peer sessions, both
-plain Claude Code / Sonnet 5, no pre-assigned roles, no Codex or Antigravity
-connected (a leftover `.codex/config.toml` in the duplicated workspace is not a
-live worker). Roles were assigned ad hoc based on what's real — see whichever
-session picked up backend vs. frontend/QA at the time; check `ListAgents` fresh
-each session rather than trusting this note to stay current on *who*, only on
-*the fact that roles must be verified, never assumed*.
+Superseded 2026-09-23: the full named Maestro roster from the original build
+brief IS real and connected via the `maestri` skill/CLI — confirmed via
+`maestri list`: "Claude — Frontend / UI", "Antigravity" (Gemini-based, its own
+CLI, not a Claude session), "Codex — Backend", "Codex QA", "Claude — Backend
+Fallback", "Shell", "Security QA", plus a "WalletQA"/"WalletPreview" browser
+portal at localhost:5173. `ListAgents` (the built-in tool, not `maestri list`)
+only shows plain peer Claude Code sessions — it does NOT surface these
+Maestri-canvas agents, so a `ListAgents`-only check will wrongly conclude the
+roster doesn't exist. Always run `maestri list` (via the `maestri` skill)
+before assuming named roles aren't connected, and re-check each session since
+what's wired up on the canvas can change between sessions.
+
+Antigravity-specific: it runs in its own permission mode and prompts
+interactively for *every* new command shape (ls, curl, each distinct `node -e`
+script, each new domain for ReadURL) — there's no way from this session to
+grant it blanket trust up front. Driving it through a real task means a
+repeated `ask`(background)→ hits a permission prompt → `ask --raw "N\n"` to
+approve → re-`ask` to resume loop; expect ~10+ rounds for a real multi-site
+research task. It also runs at 4-space terminal indentation. Antigravity's
+sourcing has been reliable when it flags uncertainty explicitly (e.g. bot-
+checkpoint-blocked deep URLs vs. verified feed data) - trust the caveats when
+it distinguishes.
 
 ## Frontend security note (2026-09-22, read-only audit, no blockers)
 
@@ -72,6 +105,14 @@ supposed to mirror faithfully.
   milestone introduces an account type that should behave credit-normal (a real
   liability/revenue account), it needs its own explicit sign handling — don't assume
   this formula generalizes.
+  **Same easy-to-invert pattern hit the frontend too (M8, found in visual QA, fixed same
+  session)**: DESIGN_DIRECTION.md's palette assigns Debit-leg values neutral white ink and
+  Credit-leg values emerald green (the "Balanced Emerald" accent, reused for zero-drift
+  verification). `ActivityPage.tsx` had the CSS class applying the emerald color on the
+  *Debit* leg's span instead of the Credit leg's - visually plausible (still two different
+  colors, still looked "designed") but backwards from the documented spec, exactly the kind
+  of mistake that isn't visible during code review and only surfaces by checking a rendered
+  page's actual computed color against the spec value.
   **Real bug found resuming the project (2026-09-22), fixed same session**: `TransferHandler`
   had this backwards — it Debited the source and Credited the destination, which (given the
   formula above) means every transfer would have *increased* the sender's balance and

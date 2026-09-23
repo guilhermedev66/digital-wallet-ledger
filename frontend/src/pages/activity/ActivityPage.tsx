@@ -1,19 +1,23 @@
 import { useCallback, useEffect, useState } from 'react'
 import { useSearchParams } from 'react-router-dom'
-import { apiClient, isApiError, type Transaction } from '../../api'
+import { apiClient, isApiError, type LedgerEntry, type Transaction } from '../../api'
 import { Button } from '../../components/Button'
 import { EmptyState } from '../../components/EmptyState'
 import { ErrorBanner } from '../../components/ErrorBanner'
 import { SkeletonRows } from '../../components/Skeleton'
 import tableStyles from '../../components/Table.module.css'
 import { useWallets } from '../../hooks/useWallets'
-import { formatSignedAmount } from '../../lib/money'
+import { formatAmount } from '../../lib/money'
 import styles from './ActivityPage.module.css'
 
 const PAGE_SIZE = 20
 
 type Status = 'loading' | 'success' | 'error'
 type ReversePhase = 'idle' | 'confirming' | 'submitting'
+
+function leg(tx: Transaction, direction: LedgerEntry['direction']): LedgerEntry | undefined {
+  return tx.entries.find((e) => e.direction === direction)
+}
 
 export function ActivityPage() {
   const { wallets, status: walletsStatus } = useWallets()
@@ -100,7 +104,13 @@ export function ActivityPage() {
   return (
     <div>
       <div className={styles.header}>
-        <h1 className={styles.title}>Activity</h1>
+        <div>
+          <h1 className={styles.title}>Activity</h1>
+          <p className={styles.subtitle}>
+            Both legs of every posted transaction — this wallet's own entry is highlighted;
+            the counterparty leg is shown alongside it, not hidden.
+          </p>
+        </div>
         {walletsStatus === 'success' && wallets.length > 0 && (
           <div>
             <label className="visually-hidden" htmlFor="activity-wallet">
@@ -160,16 +170,15 @@ export function ActivityPage() {
                   <tr>
                     <th>Date</th>
                     <th>Type</th>
-                    <th>Amount</th>
+                    <th>Debit leg</th>
+                    <th>Credit leg</th>
                     <th aria-label="Actions" />
                   </tr>
                 </thead>
                 <tbody>
                   {items.map((tx) => {
-                    const entry = tx.entries.find((e) => e.accountId === selectedWallet.id)
-                    // Debit-normal: a Debit entry increases this wallet's balance (money in),
-                    // Credit decreases it (money out) - see MEMORY.md / API_CONTRACT.md.
-                    const sign = entry?.direction === 'Debit' ? 1 : -1
+                    const debitEntry = leg(tx, 'Debit')
+                    const creditEntry = leg(tx, 'Credit')
                     const canReverse = tx.type !== 'Reversal' && !reversedTransactionIds.has(tx.id)
                     const isConfirming = reversingId === tx.id
                     return (
@@ -177,16 +186,50 @@ export function ActivityPage() {
                         <td data-label="Date">{new Date(tx.postedAtUtc).toLocaleString()}</td>
                         <td data-label="Type">{tx.type}</td>
                         <td
-                          data-label="Amount"
+                          data-label="Debit leg"
                           className={
                             tableStyles.numeric +
                             ' amount ' +
-                            (sign > 0 ? styles.credit : styles.debit)
+                            (debitEntry?.accountId === selectedWallet.id ? styles.ownLeg : '')
                           }
                         >
-                          {entry
-                            ? formatSignedAmount(entry.amountMinorUnits, entry.currency, sign)
-                            : '—'}
+                          {debitEntry ? (
+                            <>
+                              <span className={styles.legAccount + ' mono'}>
+                                {debitEntry.accountId === selectedWallet.id
+                                  ? 'This wallet'
+                                  : debitEntry.accountId}
+                              </span>
+                              <span>
+                                +{formatAmount(debitEntry.amountMinorUnits, debitEntry.currency)}
+                              </span>
+                            </>
+                          ) : (
+                            '—'
+                          )}
+                        </td>
+                        <td
+                          data-label="Credit leg"
+                          className={
+                            tableStyles.numeric +
+                            ' amount ' +
+                            (creditEntry?.accountId === selectedWallet.id ? styles.ownLeg : '')
+                          }
+                        >
+                          {creditEntry ? (
+                            <>
+                              <span className={styles.legAccount + ' mono'}>
+                                {creditEntry.accountId === selectedWallet.id
+                                  ? 'This wallet'
+                                  : creditEntry.accountId}
+                              </span>
+                              <span className={styles.positive}>
+                                -{formatAmount(creditEntry.amountMinorUnits, creditEntry.currency)}
+                              </span>
+                            </>
+                          ) : (
+                            '—'
+                          )}
                         </td>
                         <td data-label="Actions">
                           {canReverse && !isConfirming && (

@@ -103,12 +103,39 @@ export function ReconciliationPage() {
                 <span aria-hidden="true">{report.isClean ? '✓' : '⚠'}</span>
                 <span>
                   {report.isClean
-                    ? 'Balanced - the ledger checks out.'
-                    : 'Drift detected - see details below.'}
+                    ? 'Balanced — the ledger checks out.'
+                    : 'Drift detected — see details below.'}
                 </span>
                 <span className={styles.generatedAt}>
                   Generated {new Date(report.generatedAtUtc).toLocaleString()}
                 </span>
+              </div>
+
+              <div className={styles.summaryStrip}>
+                <div className={styles.summaryStat}>
+                  <span className={styles.summaryValue + ' amount'}>
+                    {report.accounts.filter((a) => a.isBalanced).length}/{report.accounts.length}
+                  </span>
+                  <span className={styles.summaryLabel}>Accounts balanced</span>
+                </div>
+                <div className={styles.summaryStat}>
+                  <span
+                    className={
+                      styles.summaryValue +
+                      ' amount ' +
+                      (report.unbalancedTransactions.length > 0 ? styles.drift : '')
+                    }
+                  >
+                    {report.unbalancedTransactions.length}
+                  </span>
+                  <span className={styles.summaryLabel}>Unbalanced transactions</span>
+                </div>
+                <p className={styles.summaryExplainer}>
+                  Each account's recomputed balance is derived independently from raw ledger
+                  entries — the same computation the rest of the app uses, run again from
+                  scratch — so this is proof of consistency, not a second opinion trusting the
+                  first.
+                </p>
               </div>
 
               <table className={tableStyles.table}>
@@ -141,7 +168,11 @@ export function ReconciliationPage() {
                           tableStyles.numeric + ' amount ' + (account.isBalanced ? '' : styles.drift)
                         }
                       >
+                        {!account.isBalanced && <span aria-hidden="true">⚠ </span>}
                         {formatAmount(account.driftMinorUnits, account.currency)}
+                        <span className="visually-hidden">
+                          {account.isBalanced ? ' (balanced)' : ' (drift detected)'}
+                        </span>
                       </td>
                     </tr>
                   ))}

@@ -15,25 +15,75 @@
   font-size: 13px;
   color: var(--color-text-faint);
   margin-top: var(--space-1);
+  max-width: 64ch;
 }
 
-.panel {
+.loading {
+  padding: var(--space-5) 0;
+}
+
+.createPanel {
   border: 1px solid var(--color-border-strong);
   border-radius: var(--radius-md);
-  background: var(--color-surface);
-  overflow: hidden;
+  background: var(--color-surface-sunken);
+  padding: var(--space-4);
+  margin-bottom: var(--space-5);
 }
 
-.rowActions {
+.groups {
   display: flex;
-  gap: var(--space-2);
-  justify-content: flex-end;
+  flex-direction: column;
+  gap: var(--space-6);
+}
+
+.group {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-3);
+}
+
+.groupHeader {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: var(--space-3);
+  flex-wrap: wrap;
+  border-bottom: 1px solid var(--color-border);
+  padding-bottom: var(--space-2);
+}
+
+.groupTitle {
+  font-size: 12px;
+  font-weight: 700;
+  letter-spacing: 0.06em;
+  color: var(--color-text-muted);
+}
+
+.groupSubtotal {
+  font-size: 12px;
+  color: var(--color-text-faint);
+}
+
+.grid {
+  display: grid;
+  /* min(280px, 100%) instead of a bare 280px - a bare minimum track width can force
+     horizontal overflow below 280px + padding viewports; this clamps to the
+     container instead. */
+  grid-template-columns: repeat(auto-fill, minmax(min(280px, 100%), 1fr));
+  gap: var(--space-4);
 }
 
 .inlineForm {
-  padding: var(--space-4);
-  border-bottom: 1px solid var(--color-border);
-  background: var(--color-surface-sunken);
+  display: flex;
+  gap: var(--space-3);
+  align-items: flex-end;
+  flex-wrap: wrap;
+}
+
+.fundForm {
+  margin-top: var(--space-3);
+  padding-top: var(--space-3);
+  border-top: 1px solid var(--color-border);
   display: flex;
   gap: var(--space-3);
   align-items: flex-end;
@@ -51,20 +101,17 @@
   gap: var(--space-1);
 }
 
+.selectLabel {
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--color-text-muted);
+}
+
 .currencySelect {
   height: 38px;
   padding: 0 var(--space-3);
   background: var(--color-surface);
   border: 1px solid var(--color-border-strong);
   border-radius: var(--radius-sm);
-}
-
-.walletName {
-  font-weight: 600;
-}
-
-.walletMeta {
-  display: block;
-  font-size: 12px;
-  color: var(--color-text-faint);
+  color: var(--color-text);
 }

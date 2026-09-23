@@ -65,6 +65,41 @@
   color: var(--color-text-faint);
 }
 
+.summaryStrip {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  gap: var(--space-6);
+  padding: var(--space-4);
+  border-bottom: 1px solid var(--color-border-strong);
+}
+
+.summaryStat {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.summaryValue {
+  font-size: 22px;
+  font-weight: 600;
+}
+
+.summaryLabel {
+  font-size: 11px;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  color: var(--color-text-muted);
+}
+
+.summaryExplainer {
+  font-size: 12px;
+  color: var(--color-text-faint);
+  max-width: 48ch;
+  margin-left: auto;
+}
+
 .accountType {
   font-weight: 600;
 }

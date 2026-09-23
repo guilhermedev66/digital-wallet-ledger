@@ -87,3 +87,65 @@
     --color-pending-bg: #fef3c7;
   }
 }
+
+/*
+ * Explicit theme choice (ThemeToggle / useTheme hook) sets `data-theme` on
+ * <html>, overriding whatever `prefers-color-scheme` says. An attribute
+ * selector on :root is higher-specificity than the bare `:root` used above
+ * in both blocks, so these win unconditionally once the attribute is set -
+ * no `:not()` gate needed. Values are deliberately duplicated (not
+ * cross-referenced) rather than restructured around the attribute, so the
+ * plain OS-preference path above keeps working untouched for anyone who
+ * never opens the toggle.
+ */
+:root[data-theme='dark'] {
+  --color-bg: #08090a;
+  --color-surface: #111215;
+  --color-surface-elevated: #181a1f;
+  --color-surface-sunken: #060708;
+
+  --color-border: #242730;
+  --color-border-strong: #3d4454;
+
+  --color-text: #f0f2f5;
+  --color-text-muted: #8b909a;
+  --color-text-faint: #484d58;
+
+  --color-accent: #ff5500;
+  --color-accent-strong: #ff7a33;
+  --color-accent-contrast: #08090a;
+
+  --color-credit: #00c853;
+  --color-credit-bg: #042617;
+  --color-debit: #f0f2f5;
+  --color-danger: #ff4d4f;
+  --color-danger-bg: #2d0a0b;
+  --color-pending: #ffb020;
+  --color-pending-bg: #291c04;
+}
+
+:root[data-theme='light'] {
+  --color-bg: #f8f9fa;
+  --color-surface: #ffffff;
+  --color-surface-elevated: #f1f3f5;
+  --color-surface-sunken: #dee2e6;
+
+  --color-border: #d8dee4;
+  --color-border-strong: #adb5bd;
+
+  --color-text: #16181d;
+  --color-text-muted: #495057;
+  --color-text-faint: #868e96;
+
+  --color-accent: #e04b00;
+  --color-accent-strong: #b93d00;
+  --color-accent-contrast: #16181d;
+
+  --color-credit: #059669;
+  --color-credit-bg: #ecfdf5;
+  --color-debit: #16181d;
+  --color-danger: #dc2626;
+  --color-danger-bg: #fef2f2;
+  --color-pending: #d97706;
+  --color-pending-bg: #fef3c7;
+}

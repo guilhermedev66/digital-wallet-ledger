@@ -1,8 +1,9 @@
-import { useEffect, useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import { NavLink, Outlet } from 'react-router-dom'
 import { useAuth } from '../auth/AuthContext'
 import { Button } from '../components/Button'
 import { CommandPalette } from '../components/CommandPalette'
+import { ThemeToggle } from '../components/ThemeToggle'
 import styles from './AppShell.module.css'
 
 const NAV_ITEMS = [
@@ -15,12 +16,28 @@ const NAV_ITEMS = [
 export function AppShell() {
   const { user, logout } = useAuth()
   const [isPaletteOpen, setIsPaletteOpen] = useState(false)
+  const paletteButtonRef = useRef<HTMLButtonElement>(null)
+  const paletteOpenerRef = useRef<HTMLElement | null>(null)
+
+  function openPalette() {
+    paletteOpenerRef.current = document.activeElement as HTMLElement | null
+    setIsPaletteOpen(true)
+  }
+
+  function closePalette() {
+    setIsPaletteOpen(false)
+    // Return focus to whatever opened the dialog (the button, or the element that had
+    // focus when ⌘K fired) instead of letting it fall back to <body>.
+    const opener = paletteOpenerRef.current
+    if (opener && document.contains(opener)) opener.focus()
+    else paletteButtonRef.current?.focus()
+  }
 
   useEffect(() => {
     function handleKeyDown(event: KeyboardEvent) {
       if ((event.metaKey || event.ctrlKey) && event.key.toLowerCase() === 'k') {
         event.preventDefault()
-        setIsPaletteOpen(true)
+        openPalette()
       }
     }
     window.addEventListener('keydown', handleKeyDown)
@@ -51,12 +68,14 @@ export function AppShell() {
           </nav>
           <div className={styles.headerActions}>
             <button
+              ref={paletteButtonRef}
               type="button"
               className={styles.paletteButton}
-              onClick={() => setIsPaletteOpen(true)}
+              onClick={openPalette}
             >
               Search <span className="mono">&#8984;K</span>
             </button>
+            <ThemeToggle />
             <span className={styles.userEmail}>{user?.email}</span>
             <Button variant="secondary" onClick={logout}>
               Log out
@@ -67,7 +86,7 @@ export function AppShell() {
       <main id="main" className={styles.main}>
         <Outlet />
       </main>
-      <CommandPalette isOpen={isPaletteOpen} onClose={() => setIsPaletteOpen(false)} />
+      <CommandPalette isOpen={isPaletteOpen} onClose={closePalette} />
     </div>
   )
 }

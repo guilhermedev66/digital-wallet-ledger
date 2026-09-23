@@ -1,21 +1,32 @@
-import { Fragment, useState, type FormEvent } from 'react'
-import { Link } from 'react-router-dom'
+import { useState, type FormEvent } from 'react'
 import { apiClient, isApiError, type Currency } from '../../api'
 import { Button } from '../../components/Button'
-import buttonStyles from '../../components/Button.module.css'
 import { EmptyState } from '../../components/EmptyState'
 import { ErrorBanner } from '../../components/ErrorBanner'
 import { Field } from '../../components/Field'
 import { SkeletonRows } from '../../components/Skeleton'
-import tableStyles from '../../components/Table.module.css'
-import { useWallets } from '../../hooks/useWallets'
+import { WalletCard } from '../../components/WalletCard'
+import { CURRENCIES } from '../../lib/currency'
+import { useWallets, type WalletSummary } from '../../hooks/useWallets'
 import { formatAmount, parseAmountToMinorUnits } from '../../lib/money'
 import styles from './DashboardPage.module.css'
+
+function groupByCurrency(wallets: WalletSummary[]): Array<[Currency, WalletSummary[]]> {
+  const groups = new Map<Currency, WalletSummary[]>()
+  for (const wallet of wallets) {
+    const group = groups.get(wallet.currency) ?? []
+    group.push(wallet)
+    groups.set(wallet.currency, group)
+  }
+  return Array.from(groups.entries())
+}
 
 export function DashboardPage() {
   const { wallets, status, error, refresh } = useWallets()
   const [isCreating, setIsCreating] = useState(false)
   const [fundingWalletId, setFundingWalletId] = useState<string | null>(null)
+
+  const groups = groupByCurrency(wallets)
 
   return (
     <div>
@@ -23,7 +34,9 @@ export function DashboardPage() {
         <div>
           <h1 className={styles.title}>Wallets</h1>
           <p className={styles.subtitle}>
-            Balances are derived from posted ledger entries, never a stored field.
+            Balances are derived from posted ledger entries, never a stored field. Each
+            wallet's balance stays in its own currency — nothing here is summed across
+            currencies.
           </p>
         </div>
         <Button variant="primary" onClick={() => setIsCreating((v) => !v)}>
@@ -31,8 +44,8 @@ export function DashboardPage() {
         </Button>
       </div>
 
-      <div className={styles.panel}>
-        {isCreating && (
+      {isCreating && (
+        <div className={styles.createPanel}>
           <NewWalletForm
             onCreated={() => {
               setIsCreating(false)
@@ -40,78 +53,63 @@ export function DashboardPage() {
             }}
             onCancel={() => setIsCreating(false)}
           />
-        )}
+        </div>
+      )}
 
-        {status === 'loading' && (
-          <div style={{ padding: 'var(--space-5)' }}>
-            <SkeletonRows count={3} />
-          </div>
-        )}
+      {status === 'loading' && (
+        <div className={styles.loading}>
+          <SkeletonRows count={3} />
+        </div>
+      )}
 
-        {status === 'error' && (
-          <div style={{ padding: 'var(--space-5)', display: 'grid', gap: 'var(--space-3)' }}>
-            <ErrorBanner message={error ?? 'Could not load wallets.'} />
-            <Button onClick={refresh}>Retry</Button>
-          </div>
-        )}
+      {status === 'error' && (
+        <div style={{ display: 'grid', gap: 'var(--space-3)' }}>
+          <ErrorBanner message={error ?? 'Could not load wallets.'} />
+          <Button onClick={refresh}>Retry</Button>
+        </div>
+      )}
 
-        {status === 'success' && wallets.length === 0 && !isCreating && (
-          <div style={{ padding: 'var(--space-5)' }}>
-            <EmptyState
-              title="No wallets yet"
-              description="Create a wallet to start simulating deposits and transfers."
-              action={
-                <Button variant="primary" onClick={() => setIsCreating(true)}>
-                  Create your first wallet
-                </Button>
-              }
-            />
-          </div>
-        )}
+      {status === 'success' && wallets.length === 0 && !isCreating && (
+        <EmptyState
+          title="No wallets yet"
+          description="Create a wallet to start posting simulated deposits and transfers — every balance you'll see from here on is computed live from the ledger entries you create, not stored anywhere."
+          action={
+            <Button variant="primary" onClick={() => setIsCreating(true)}>
+              Create your first wallet
+            </Button>
+          }
+        />
+      )}
 
-        {status === 'success' && wallets.length > 0 && (
-          <table className={tableStyles.table}>
-            <thead>
-              <tr>
-                <th>Wallet</th>
-                <th>Currency</th>
-                <th>Balance</th>
-                <th aria-label="Actions" />
-              </tr>
-            </thead>
-            <tbody>
-              {wallets.map((wallet) => (
-                <Fragment key={wallet.id}>
-                  <tr>
-                    <td data-label="Wallet">
-                      <span className={styles.walletName}>{wallet.displayName ?? 'Untitled wallet'}</span>
-                      <span className={styles.walletMeta + ' mono'}>{wallet.id}</span>
-                    </td>
-                    <td data-label="Currency">{wallet.currency}</td>
-                    <td data-label="Balance" className={tableStyles.numeric + ' amount'}>
-                      {formatAmount(wallet.balanceMinorUnits, wallet.currency)}
-                    </td>
-                    <td data-label="Actions">
-                      <div className={styles.rowActions}>
-                        <Button
-                          onClick={() =>
-                            setFundingWalletId((id) => (id === wallet.id ? null : wallet.id))
-                          }
-                        >
-                          {fundingWalletId === wallet.id ? 'Cancel' : 'Fund (demo)'}
-                        </Button>
-                        <Link
-                          to={`/activity?wallet=${wallet.id}`}
-                          className={[buttonStyles.button, buttonStyles.secondary].join(' ')}
-                        >
-                          Activity
-                        </Link>
-                      </div>
-                    </td>
-                  </tr>
-                  {fundingWalletId === wallet.id && (
-                    <tr key={`${wallet.id}-fund`}>
-                      <td colSpan={4} style={{ padding: 0 }}>
+      {status === 'success' && wallets.length > 0 && (
+        <div className={styles.groups}>
+          {groups.map(([currency, group]) => (
+            <section key={currency} className={styles.group} aria-labelledby={`group-${currency}`}>
+              <div className={styles.groupHeader}>
+                <h2 id={`group-${currency}`} className={styles.groupTitle}>
+                  {currency}
+                </h2>
+                {group.length > 1 && (
+                  <span className={styles.groupSubtotal + ' amount'}>
+                    {group.length} wallets · Total{' '}
+                    {formatAmount(
+                      group.reduce((sum, w) => sum + w.balanceMinorUnits, 0),
+                      currency,
+                    )}
+                  </span>
+                )}
+              </div>
+              <div className={styles.grid}>
+                {group.map((wallet) => (
+                  <WalletCard
+                    key={wallet.id}
+                    wallet={wallet}
+                    isFunding={fundingWalletId === wallet.id}
+                    onToggleFund={() =>
+                      setFundingWalletId((id) => (id === wallet.id ? null : wallet.id))
+                    }
+                    fundingSlot={
+                      fundingWalletId === wallet.id ? (
                         <FundWalletForm
                           walletId={wallet.id}
                           currency={wallet.currency}
@@ -121,15 +119,15 @@ export function DashboardPage() {
                           }}
                           onCancel={() => setFundingWalletId(null)}
                         />
-                      </td>
-                    </tr>
-                  )}
-                </Fragment>
-              ))}
-            </tbody>
-          </table>
-        )}
-      </div>
+                      ) : undefined
+                    }
+                  />
+                ))}
+              </div>
+            </section>
+          ))}
+        </div>
+      )}
     </div>
   )
 }
@@ -171,7 +169,7 @@ function NewWalletForm({
         disabled={isSubmitting}
       />
       <div className={styles.currencyField}>
-        <label className="visually-hidden" htmlFor="new-wallet-currency">
+        <label className={styles.selectLabel} htmlFor="new-wallet-currency">
           Currency
         </label>
         <select
@@ -181,8 +179,11 @@ function NewWalletForm({
           onChange={(e) => setCurrency(e.target.value as Currency)}
           disabled={isSubmitting}
         >
-          <option value="USD">USD</option>
-          <option value="BRL">BRL</option>
+          {CURRENCIES.map((c) => (
+            <option key={c.code} value={c.code}>
+              {c.code} — {c.label}
+            </option>
+          ))}
         </select>
       </div>
       {error && <ErrorBanner message={error} />}
@@ -233,7 +234,7 @@ function FundWalletForm({
   }
 
   return (
-    <form className={styles.inlineForm} onSubmit={handleSubmit} noValidate>
+    <form className={styles.fundForm} onSubmit={handleSubmit} noValidate>
       <Field
         label={`Amount (${currency}) — simulated funding`}
         placeholder="25.00"

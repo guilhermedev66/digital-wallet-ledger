@@ -58,7 +58,7 @@ There is no `POST /api/transfers`, no cursor-based pagination, and no
 WalletDto {
   id: string
   ownerUserId: string
-  currency: "USD" | "BRL"
+  currency: "USD" | "BRL" | "EUR" | "GBP" | "CHF" | "CAD" | "AUD"
   displayName: string | null
   createdAtUtc: string
 }
@@ -68,7 +68,7 @@ WalletDto {
 
 WalletBalanceDto {
   walletId: string
-  currency: "USD" | "BRL"
+  currency: "USD" | "BRL" | "EUR" | "GBP" | "CHF" | "CAD" | "AUD"
   balanceMinorUnits: number
 }
 
@@ -87,7 +87,7 @@ LedgerEntryDto {
   accountId: string
   direction: "Debit" | "Credit"
   amountMinorUnits: number
-  currency: "USD" | "BRL"
+  currency: "USD" | "BRL" | "EUR" | "GBP" | "CHF" | "CAD" | "AUD"
 }
 
 PagedResult<T> {
@@ -101,7 +101,7 @@ PagedResult<T> {
 AccountReconciliationDto {
   accountId: string
   accountType: string
-  currency: "USD" | "BRL"
+  currency: "USD" | "BRL" | "EUR" | "GBP" | "CHF" | "CAD" | "AUD"
   projectedBalanceMinorUnits: number
   recomputedBalanceMinorUnits: number
   driftMinorUnits: number
@@ -109,7 +109,7 @@ AccountReconciliationDto {
 }
 UnbalancedTransactionDto {
   transactionId: string
-  currency: "USD" | "BRL"
+  currency: "USD" | "BRL" | "EUR" | "GBP" | "CHF" | "CAD" | "AUD"
   totalDebitMinorUnits: number
   totalCreditMinorUnits: number
 }

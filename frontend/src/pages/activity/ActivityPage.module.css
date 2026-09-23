@@ -11,6 +11,13 @@
   font-size: 20px;
 }
 
+.subtitle {
+  font-size: 13px;
+  color: var(--color-text-faint);
+  margin-top: var(--space-1);
+  max-width: 60ch;
+}
+
 .select {
   height: 38px;
   padding: 0 var(--space-3);
@@ -26,12 +33,35 @@
   overflow: hidden;
 }
 
-.credit {
+.positive {
   color: var(--color-credit);
 }
 
-.debit {
-  color: var(--color-debit);
+.legAccount {
+  display: block;
+  font-size: 11px;
+  color: var(--color-text-faint);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  max-width: 160px;
+}
+
+.ownLeg {
+  background: var(--color-surface-elevated);
+  font-weight: 600;
+}
+
+@media (max-width: 640px) {
+  /* A full wallet UUID has nowhere to truncate to at this width - let it wrap onto
+     multiple lines instead of forcing horizontal scroll (still capped to the row's
+     available width via the shared stacked-row flex layout in Table.module.css). */
+  .legAccount {
+    max-width: 60%;
+    white-space: normal;
+    overflow-wrap: anywhere;
+    text-overflow: clip;
+  }
 }
 
 .footer {

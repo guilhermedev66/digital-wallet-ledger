@@ -76,7 +76,11 @@ export function CommandPalette({ isOpen, onClose }: { isOpen: boolean; onClose: 
           onChange={(e) => setQuery(e.target.value)}
           onKeyDown={(e) => {
             if (e.key === 'Escape') onClose()
-            else if (e.key === 'ArrowDown') {
+            else if (e.key === 'Tab') {
+              // This input is the dialog's only focusable control - pin focus here
+              // instead of letting Tab escape to background content behind the overlay.
+              e.preventDefault()
+            } else if (e.key === 'ArrowDown') {
               e.preventDefault()
               setActiveIndex((i) => Math.min(i + 1, filtered.length - 1))
             } else if (e.key === 'ArrowUp') {

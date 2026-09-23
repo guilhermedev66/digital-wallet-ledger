@@ -104,7 +104,55 @@ Status legend: `[ ]` not started, `[~]` in progress, `[x]` done.
   allow/deny), same Docker-gated status as the rest of this project - not run locally.
 - [ ] Deployment; production security smoke test against the real deployed URL.
 
+## M8 — Frontend visual redesign
+- [x] UX research (Antigravity, live browsing of Inspora/Refero Styles/Spell) and direction
+  selection - Direction 1 "The Ledger Terminal" chosen jointly by the Orchestrator and
+  Claude — Frontend/UI, documented with full rationale and rejected alternatives in
+  DESIGN_DIRECTION.md.
+- [x] `tokens.css` rewritten to the selected palette (void/carbon/graphite surfaces,
+  ember/amber/emerald accents reserved for money-in-motion/pending/balanced states only);
+  dark is the unconditional default, light is a separately-designed override, not an
+  inversion. Dead Vite-template `index.css` deleted.
+- [x] Dashboard, Transfer, Activity, and Reconciliation pages redesigned against Direction 1
+  - wallets shown as "Account Nodes" (`WalletCard`, monospaced UUID + copy action, tabular
+  balance, real telemetry), Transfer shows an explicit ledger preview of both legs before
+  commit, Activity shows both Debit/Credit legs per transaction (not just the caller's
+  side), Reconciliation gained a summary strip (accounts-balanced / unbalanced-transactions
+  counts). New `ThemeToggle`/`useTheme` (persisted, pre-hydration FOUC guard in
+  `index.html`), `CopyButton`, `lib/currency.ts`.
+- [x] Currency UX: wallet creation exposes all 7 backend-supported currencies (USD, BRL,
+  EUR, GBP, CHF, CAD, AUD - JPY deliberately excluded, see `api/types.ts` comment); dashboard
+  groups wallets by currency and totals only within a currency group, never across ones - no
+  invented FX, no fake aggregate balance.
+- [x] Rendered-app visual QA (live browser via Maestri portal, both themes, 320/375/1440px,
+  full deposit → transfer → activity → reconciliation flow with real mock-client data) -
+  found and fixed 2 real issues: `WalletCard`'s deposit toggle and its own inline form both
+  showed a "Cancel" button simultaneously (confusing, now the toggle hides while the form is
+  open); `ActivityPage`'s Debit/Credit leg value colors were inverted against
+  DESIGN_DIRECTION.md's documented convention (Debit = neutral white ink, Credit = emerald -
+  the code had it backwards). Verified no horizontal overflow at 320/375/1440px, disabled-state
+  styling (0.55 opacity) confirmed applied correctly, currency-mismatch and
+  insufficient-funds validation both confirmed live, reversal-hiding for `Reversal`/
+  already-reversed rows confirmed live, light/dark computed colors spot-checked against the
+  exact hex values in DESIGN_DIRECTION.md's palette tables (all matched).
+- [x] Independent functional regression QA (Codex QA, read-only): no confirmed regressions -
+  transfer currency enforcement, idempotency-key reuse, reversal eligibility, and
+  amount/balance formatting all consistent with `mockClient.ts` and the real backend. One
+  real finding, fixed: `frontend/API_CONTRACT.md` still documented the pre-M7 two-currency
+  (`USD`/`BRL`) union instead of the current 7-currency one.
+- [x] Light security sanity check (not a full SECURITY GATE pass - this milestone touches no
+  API/auth/authz/data/tenant-isolation surface, only frontend presentation): no
+  `dangerouslySetInnerHTML`/`eval`, no hardcoded secrets, no `.env`/credential files touched;
+  the new pre-hydration theme script in `index.html` only reads its own localStorage key,
+  wrapped in try/catch, no innerHTML.
+- [x] `npm run build` and `npm run lint` clean (0 errors; pre-existing `set-state-in-effect`
+  warnings on files this milestone didn't touch, not a new regression).
+- [ ] Deployment - deliberately not done yet; local dev server left running for the user to
+  inspect before any GitHub/Neon/Render/Vercel decision.
+
 ## Known environment blockers (see MEMORY.md for detail)
-- Docker CLI is not available in this WSL distro (Docker Desktop WSL integration not
-  enabled) — blocks running docker-compose / Testcontainers **locally** until the
-  user enables it. CI (GitHub Actions) has Docker natively and is unaffected.
+- ~~Docker CLI not available locally~~ — resolved 2026-09-23: Docker Desktop's WSL
+  integration works via `docker.exe` from this WSL distro (Docker Desktop just
+  needed to be running). `docker compose up -d` + `dotnet ef database update` work
+  locally now. First-ever local run of the full test suite against real Postgres:
+  54 Domain + 90 Application + 58 IntegrationTests, all green.

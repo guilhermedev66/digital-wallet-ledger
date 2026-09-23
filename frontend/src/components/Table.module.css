@@ -57,6 +57,11 @@
     display: flex;
     justify-content: space-between;
     gap: var(--space-3);
+    /* Safety net for unbroken content (wallet/transaction UUIDs, idempotency keys) -
+       without this, a long mono ID with no explicit wrap handling can force
+       horizontal overflow on narrow viewports. Inherited by descendants unless a
+       page overrides it more precisely. */
+    overflow-wrap: anywhere;
   }
   .table td[data-label]::before {
     content: attr(data-label);

@@ -1,4 +1,7 @@
-export type Currency = 'USD' | 'BRL'
+// JPY is deliberately excluded - it's 0-decimal, which would break the /100
+// assumption baked into lib/money.ts's minor-units conversion. The backend
+// excludes it for the same reason.
+export type Currency = 'USD' | 'BRL' | 'EUR' | 'GBP' | 'CHF' | 'CAD' | 'AUD'
 
 export type TransactionType = 'Transfer' | 'SimulatedFunding' | 'Reversal'
 
