@@ -4,6 +4,7 @@ import { Button } from '../../components/Button'
 import { EmptyState } from '../../components/EmptyState'
 import { ErrorBanner } from '../../components/ErrorBanner'
 import { Field } from '../../components/Field'
+import { LabelInput } from '../../components/LabelInput'
 import { SkeletonRows } from '../../components/Skeleton'
 import { WalletCard } from '../../components/WalletCard'
 import { CURRENCIES } from '../../lib/currency'
@@ -86,18 +87,23 @@ export function DashboardPage() {
           {groups.map(([currency, group]) => (
             <section key={currency} className={styles.group} aria-labelledby={`group-${currency}`}>
               <div className={styles.groupHeader}>
-                <h2 id={`group-${currency}`} className={styles.groupTitle}>
-                  {currency}
-                </h2>
-                {group.length > 1 && (
-                  <span className={styles.groupSubtotal + ' amount'}>
-                    {group.length} wallets · Total{' '}
+                <div className={styles.groupHeading}>
+                  <h2 id={`group-${currency}`} className={styles.groupTitle}>
+                    {currency}
+                  </h2>
+                  <span className={styles.groupCount}>
+                    {group.length} Account {group.length === 1 ? 'Node' : 'Nodes'}
+                  </span>
+                </div>
+                <div className={styles.groupTotalBlock}>
+                  <span className={styles.groupTotalLabel}>Total {currency}</span>
+                  <span className={styles.groupTotal + ' mono'}>
                     {formatAmount(
                       group.reduce((sum, w) => sum + w.balanceMinorUnits, 0),
                       currency,
                     )}
                   </span>
-                )}
+                </div>
               </div>
               <div className={styles.grid}>
                 {group.map((wallet) => (
@@ -199,6 +205,8 @@ function NewWalletForm({
   )
 }
 
+const DEPOSIT_PRESETS = [10000, 100000] // minor units: +$100.00, +$1,000.00 (currency-symbol-agnostic)
+
 function FundWalletForm({
   walletId,
   currency,
@@ -213,6 +221,11 @@ function FundWalletForm({
   const [amount, setAmount] = useState('')
   const [error, setError] = useState<string | null>(null)
   const [isSubmitting, setIsSubmitting] = useState(false)
+
+  function applyPreset(minorUnits: number) {
+    setError(null)
+    setAmount((minorUnits / 100).toFixed(2))
+  }
 
   async function handleSubmit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault()
@@ -235,15 +248,31 @@ function FundWalletForm({
 
   return (
     <form className={styles.fundForm} onSubmit={handleSubmit} noValidate>
-      <Field
+      <LabelInput
         label={`Amount (${currency}) — simulated funding`}
         placeholder="25.00"
         inputMode="decimal"
         required
+        mono
         value={amount}
         onChange={(e) => setAmount(e.target.value)}
         disabled={isSubmitting}
         error={error ?? undefined}
+        suffixSlot={
+          <span className={styles.presetChips}>
+            {DEPOSIT_PRESETS.map((minorUnits) => (
+              <button
+                key={minorUnits}
+                type="button"
+                className={styles.presetChip}
+                onClick={() => applyPreset(minorUnits)}
+                disabled={isSubmitting}
+              >
+                +{formatAmount(minorUnits, currency)}
+              </button>
+            ))}
+          </span>
+        }
       />
       <div className={styles.inlineFormActions}>
         <Button type="submit" variant="primary" isLoading={isSubmitting}>

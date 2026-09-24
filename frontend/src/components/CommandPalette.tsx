@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useRef, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { useAuth } from '../auth/AuthContext'
+import { Kbd } from './Kbd'
 import styles from './CommandPalette.module.css'
 
 interface Command {
@@ -116,7 +117,17 @@ export function CommandPalette({ isOpen, onClose }: { isOpen: boolean; onClose: 
           ))}
           {filtered.length === 0 && <li className={styles.item}>No matching command</li>}
         </ul>
-        <div className={styles.hint}>&uarr;&darr; navigate &middot; &crarr; select &middot; esc close</div>
+        <div className={styles.hint}>
+          <span className={styles.hintItem}>
+            <Kbd keys={['↑', '↓']} /> navigate
+          </span>
+          <span className={styles.hintItem}>
+            <Kbd keys={['↵']} /> select
+          </span>
+          <span className={styles.hintItem}>
+            <Kbd keys={['esc']} /> close
+          </span>
+        </div>
       </div>
     </div>
   )

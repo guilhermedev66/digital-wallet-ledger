@@ -44,24 +44,55 @@
 
 .groupHeader {
   display: flex;
-  align-items: baseline;
+  align-items: flex-end;
   justify-content: space-between;
   gap: var(--space-3);
   flex-wrap: wrap;
   border-bottom: 1px solid var(--color-border);
-  padding-bottom: var(--space-2);
+  padding-bottom: var(--space-3);
+}
+
+.groupHeading {
+  display: flex;
+  align-items: baseline;
+  gap: var(--space-2);
 }
 
 .groupTitle {
-  font-size: 12px;
-  font-weight: 700;
-  letter-spacing: 0.06em;
-  color: var(--color-text-muted);
+  font-family: var(--font-mono);
+  font-size: var(--text-h2-size);
+  font-weight: var(--text-h2-weight);
+  letter-spacing: var(--text-h2-tracking);
+  color: var(--color-text);
 }
 
-.groupSubtotal {
-  font-size: 12px;
+.groupCount {
+  font-size: var(--text-label-size);
+  font-weight: var(--text-label-weight);
+  letter-spacing: var(--text-label-tracking);
+  text-transform: uppercase;
   color: var(--color-text-faint);
+}
+
+.groupTotalBlock {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-end;
+  gap: 2px;
+}
+
+.groupTotalLabel {
+  font-size: 10px;
+  font-weight: 600;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: var(--color-text-faint);
+}
+
+.groupTotal {
+  font-size: var(--text-mono-lg-size);
+  font-weight: var(--text-mono-lg-weight);
+  color: var(--color-text);
 }
 
 .grid {
@@ -114,4 +145,36 @@
   border: 1px solid var(--color-border-strong);
   border-radius: var(--radius-sm);
   color: var(--color-text);
+}
+
+.presetChips {
+  display: flex;
+  gap: var(--space-1);
+  flex-shrink: 0;
+}
+
+.presetChip {
+  height: 24px;
+  padding: 0 var(--space-2);
+  font-family: var(--font-mono);
+  font-size: 11px;
+  font-weight: 600;
+  color: var(--color-text-muted);
+  background: var(--color-surface-elevated);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-sm);
+  cursor: pointer;
+  transition:
+    color 0.08s ease,
+    border-color 0.08s ease;
+}
+
+.presetChip:hover:not(:disabled) {
+  color: var(--color-text);
+  border-color: var(--color-border-strong);
+}
+
+.presetChip:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
 }

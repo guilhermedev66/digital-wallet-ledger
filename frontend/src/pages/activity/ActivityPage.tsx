@@ -2,10 +2,10 @@ import { useCallback, useEffect, useState } from 'react'
 import { useSearchParams } from 'react-router-dom'
 import { apiClient, isApiError, type LedgerEntry, type Transaction } from '../../api'
 import { Button } from '../../components/Button'
+import { CopyButton } from '../../components/CopyButton'
 import { EmptyState } from '../../components/EmptyState'
 import { ErrorBanner } from '../../components/ErrorBanner'
 import { SkeletonRows } from '../../components/Skeleton'
-import tableStyles from '../../components/Table.module.css'
 import { useWallets } from '../../hooks/useWallets'
 import { formatAmount } from '../../lib/money'
 import styles from './ActivityPage.module.css'
@@ -17,6 +17,10 @@ type ReversePhase = 'idle' | 'confirming' | 'submitting'
 
 function leg(tx: Transaction, direction: LedgerEntry['direction']): LedgerEntry | undefined {
   return tx.entries.find((e) => e.direction === direction)
+}
+
+function shortId(id: string): string {
+  return id.length > 14 ? `${id.slice(0, 6)}…${id.slice(-4)}` : id
 }
 
 export function ActivityPage() {
@@ -107,8 +111,8 @@ export function ActivityPage() {
         <div>
           <h1 className={styles.title}>Activity</h1>
           <p className={styles.subtitle}>
-            Both legs of every posted transaction — this wallet's own entry is highlighted;
-            the counterparty leg is shown alongside it, not hidden.
+            The journal, not a bank statement — every entry shows both legs. This wallet's own
+            leg is highlighted; the counterparty leg is connected beneath it, never hidden.
           </p>
         </div>
         {walletsStatus === 'success' && wallets.length > 0 && (
@@ -124,7 +128,7 @@ export function ActivityPage() {
             >
               {wallets.map((w) => (
                 <option key={w.id} value={w.id}>
-                  {w.displayName ?? 'Untitled wallet'}
+                  {w.displayName ?? 'Untitled wallet'} · {w.currency}
                 </option>
               ))}
             </select>
@@ -165,113 +169,146 @@ export function ActivityPage() {
 
           {status === 'success' && items.length > 0 && selectedWallet && (
             <>
-              <table className={tableStyles.table}>
-                <thead>
-                  <tr>
-                    <th>Date</th>
-                    <th>Type</th>
-                    <th>Debit leg</th>
-                    <th>Credit leg</th>
-                    <th aria-label="Actions" />
-                  </tr>
-                </thead>
-                <tbody>
-                  {items.map((tx) => {
-                    const debitEntry = leg(tx, 'Debit')
-                    const creditEntry = leg(tx, 'Credit')
-                    const canReverse = tx.type !== 'Reversal' && !reversedTransactionIds.has(tx.id)
-                    const isConfirming = reversingId === tx.id
-                    return (
-                      <tr key={tx.id}>
-                        <td data-label="Date">{new Date(tx.postedAtUtc).toLocaleString()}</td>
-                        <td data-label="Type">{tx.type}</td>
-                        <td
-                          data-label="Debit leg"
-                          className={
-                            tableStyles.numeric +
-                            ' amount ' +
-                            (debitEntry?.accountId === selectedWallet.id ? styles.ownLeg : '')
-                          }
-                        >
-                          {debitEntry ? (
-                            <>
-                              <span className={styles.legAccount + ' mono'}>
-                                {debitEntry.accountId === selectedWallet.id
-                                  ? 'This wallet'
-                                  : debitEntry.accountId}
-                              </span>
-                              <span>
-                                +{formatAmount(debitEntry.amountMinorUnits, debitEntry.currency)}
-                              </span>
-                            </>
-                          ) : (
-                            '—'
-                          )}
-                        </td>
-                        <td
-                          data-label="Credit leg"
-                          className={
-                            tableStyles.numeric +
-                            ' amount ' +
-                            (creditEntry?.accountId === selectedWallet.id ? styles.ownLeg : '')
-                          }
-                        >
-                          {creditEntry ? (
-                            <>
-                              <span className={styles.legAccount + ' mono'}>
-                                {creditEntry.accountId === selectedWallet.id
-                                  ? 'This wallet'
-                                  : creditEntry.accountId}
-                              </span>
-                              <span className={styles.positive}>
-                                -{formatAmount(creditEntry.amountMinorUnits, creditEntry.currency)}
-                              </span>
-                            </>
-                          ) : (
-                            '—'
-                          )}
-                        </td>
-                        <td data-label="Actions">
-                          {canReverse && !isConfirming && (
+              <div className={styles.journalHead} aria-hidden="true">
+                <span>Entry</span>
+                <span>Own leg</span>
+                <span>Counterparty leg</span>
+                <span>Actions</span>
+              </div>
+              <ol className={styles.journal}>
+                {items.map((tx) => {
+                  const debitEntry = leg(tx, 'Debit')
+                  const creditEntry = leg(tx, 'Credit')
+                  const debitIsOwn = debitEntry?.accountId === selectedWallet.id
+                  const ownEntry = debitIsOwn ? debitEntry : creditEntry
+                  const counterpartyEntry = debitIsOwn ? creditEntry : debitEntry
+                  const ownDirection: 'Debit' | 'Credit' = debitIsOwn ? 'Debit' : 'Credit'
+                  const counterpartyDirection: 'Debit' | 'Credit' = debitIsOwn
+                    ? 'Credit'
+                    : 'Debit'
+                  const isReversed = reversedTransactionIds.has(tx.id)
+                  const canReverse = tx.type !== 'Reversal' && !isReversed
+                  const isConfirming = reversingId === tx.id
+
+                  return (
+                    <li key={tx.id} className={styles.entry}>
+                      <div className={styles.entryHead}>
+                        <div className={styles.entryMeta}>
+                          <time className={styles.entryDate + ' mono'} dateTime={tx.postedAtUtc}>
+                            {new Date(tx.postedAtUtc).toLocaleString()}
+                          </time>
+                          <span
+                            className={
+                              styles.typeBadge +
+                              (tx.type === 'Reversal' ? ' ' + styles.typeBadgeReversal : '')
+                            }
+                          >
+                            {tx.type}
+                          </span>
+                          {isReversed && <span className={styles.reversedTag}>Reversed</span>}
+                        </div>
+                        <div className={styles.entryId}>
+                          <span className="mono">{shortId(tx.id)}</span>
+                          <CopyButton value={tx.id} label="transaction ID" />
+                        </div>
+                      </div>
+
+                      {tx.type === 'Reversal' && tx.reversalOfTransactionId && (
+                        <p className={styles.reversalNote}>
+                          Reverses{' '}
+                          <span className="mono">{shortId(tx.reversalOfTransactionId)}</span>
+                          <CopyButton
+                            value={tx.reversalOfTransactionId}
+                            label="reversed transaction ID"
+                          />
+                        </p>
+                      )}
+
+                      <div className={styles.legs}>
+                        <div className={styles.leg + ' ' + styles.legOwn}>
+                          <span className={styles.legDirection}>
+                            {ownDirection === 'Debit' ? '↗ Debit' : '↙ Credit'}
+                          </span>
+                          <span className={styles.legAccount}>This wallet</span>
+                          <span
+                            className={
+                              'amount ' + (ownDirection === 'Credit' ? styles.positive : '')
+                            }
+                          >
+                            {ownEntry
+                              ? `${ownDirection === 'Debit' ? '+' : '-'}${formatAmount(
+                                  ownEntry.amountMinorUnits,
+                                  ownEntry.currency,
+                                )}`
+                              : '—'}
+                          </span>
+                        </div>
+                        <div className={styles.leg + ' ' + styles.legCounterparty}>
+                          <span className={styles.treeBracket} aria-hidden="true">
+                            └──
+                          </span>
+                          <span className={styles.legDirection}>
+                            {counterpartyDirection === 'Debit' ? '↗ Debit' : '↙ Credit'}
+                          </span>
+                          <span className={styles.legAccount + ' mono'}>
+                            {counterpartyEntry?.accountId ?? '—'}
+                          </span>
+                          <span
+                            className={
+                              'amount ' +
+                              (counterpartyDirection === 'Credit' ? styles.positive : '')
+                            }
+                          >
+                            {counterpartyEntry
+                              ? `${counterpartyDirection === 'Debit' ? '+' : '-'}${formatAmount(
+                                  counterpartyEntry.amountMinorUnits,
+                                  counterpartyEntry.currency,
+                                )}`
+                              : '—'}
+                          </span>
+                        </div>
+                      </div>
+
+                      <div className={styles.entryActions}>
+                        {canReverse && !isConfirming && (
+                          <Button
+                            onClick={() => {
+                              setReversingId(tx.id)
+                              setReversePhase('confirming')
+                              setReverseError(null)
+                            }}
+                          >
+                            Reverse
+                          </Button>
+                        )}
+                        {isConfirming && (
+                          <div className={styles.reverseConfirm}>
+                            {reverseError && <ErrorBanner message={reverseError} />}
+                            <span>Reverse this transaction?</span>
                             <Button
+                              variant="primary"
+                              isLoading={reversePhase === 'submitting'}
+                              onClick={() => confirmReverse(tx.id)}
+                            >
+                              Confirm
+                            </Button>
+                            <Button
+                              disabled={reversePhase === 'submitting'}
                               onClick={() => {
-                                setReversingId(tx.id)
-                                setReversePhase('confirming')
+                                setReversingId(null)
+                                setReversePhase('idle')
                                 setReverseError(null)
                               }}
                             >
-                              Reverse
+                              Cancel
                             </Button>
-                          )}
-                          {isConfirming && (
-                            <div className={styles.reverseConfirm}>
-                              {reverseError && <ErrorBanner message={reverseError} />}
-                              <span>Reverse this transaction?</span>
-                              <Button
-                                variant="primary"
-                                isLoading={reversePhase === 'submitting'}
-                                onClick={() => confirmReverse(tx.id)}
-                              >
-                                Confirm
-                              </Button>
-                              <Button
-                                disabled={reversePhase === 'submitting'}
-                                onClick={() => {
-                                  setReversingId(null)
-                                  setReversePhase('idle')
-                                  setReverseError(null)
-                                }}
-                              >
-                                Cancel
-                              </Button>
-                            </div>
-                          )}
-                        </td>
-                      </tr>
-                    )
-                  })}
-                </tbody>
-              </table>
+                          </div>
+                        )}
+                      </div>
+                    </li>
+                  )
+                })}
+              </ol>
               {hasMore && (
                 <div className={styles.footer}>
                   <Button onClick={loadMore} isLoading={isLoadingMore}>

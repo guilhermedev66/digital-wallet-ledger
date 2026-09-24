@@ -5,8 +5,13 @@
 }
 
 .header {
-  border-bottom: 1px solid var(--color-border-strong);
-  background: var(--color-surface);
+  position: sticky;
+  top: 0;
+  z-index: 20;
+  border-bottom: 1px solid var(--color-border);
+  background: color-mix(in srgb, var(--color-surface) 92%, transparent);
+  backdrop-filter: blur(12px);
+  -webkit-backdrop-filter: blur(12px);
 }
 
 .headerInner {
@@ -19,58 +24,113 @@
   gap: var(--space-6);
 }
 
+.identity {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+  flex-shrink: 0;
+}
+
 .brand {
+  font-family: var(--font-ui);
   font-weight: 700;
-  font-size: 14px;
-  letter-spacing: -0.01em;
+  font-size: 13px;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
   white-space: nowrap;
 }
 
+.statusDot {
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  background: var(--color-credit);
+  flex-shrink: 0;
+}
+
+.terminalBadge {
+  font-size: var(--text-caption-size);
+  font-weight: var(--text-caption-weight);
+  letter-spacing: var(--text-caption-tracking);
+  color: var(--color-text-faint);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-sm);
+  padding: 1px var(--space-1);
+}
+
+/* Segmented instrument rail - a recessed well housing the active-segment
+   indicator, not a loose row of text links (DESIGN_BRIEF_M8.1.md §3.2.1). */
 .nav {
   display: flex;
-  gap: var(--space-1);
+  align-items: center;
+  gap: 2px;
   flex: 1;
+  height: 32px;
+  padding: 2px;
+  background: var(--color-surface-sunken);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-sm);
+  width: fit-content;
 }
 
 .navLink {
-  padding: var(--space-2) var(--space-3);
+  display: inline-flex;
+  align-items: center;
+  height: 100%;
+  padding: 0 var(--space-3);
   border-radius: var(--radius-sm);
-  font-size: 13px;
-  font-weight: 600;
+  font-family: var(--font-ui);
+  font-size: var(--text-label-size);
+  font-weight: var(--text-label-weight);
+  letter-spacing: 0.02em;
   color: var(--color-text-muted);
   text-decoration: none;
+  border-bottom: 2px solid transparent;
+  transition:
+    color 0.1s ease,
+    background-color 0.1s ease,
+    border-color 0.1s ease;
 }
 
 .navLink:hover {
   color: var(--color-text);
-  background: var(--color-surface-sunken);
 }
 
 .navLinkActive {
   color: var(--color-text);
-  background: var(--color-surface-sunken);
+  background: var(--color-surface-elevated);
+  border-bottom-color: var(--color-accent);
 }
 
 .headerActions {
   display: flex;
   align-items: center;
   gap: var(--space-3);
+  flex-shrink: 0;
 }
 
 .paletteButton {
   display: inline-flex;
   align-items: center;
   gap: var(--space-2);
-  border: 1px solid var(--color-border-strong);
-  background: var(--color-surface);
+  border: 1px solid var(--color-border);
+  background: var(--color-surface-sunken);
   border-radius: var(--radius-sm);
   padding: var(--space-1) var(--space-2);
+  font-family: var(--font-ui);
   font-size: 12px;
   color: var(--color-text-muted);
   cursor: pointer;
+  transition: border-color 0.1s ease;
+}
+
+.paletteButton:hover {
+  border-color: var(--color-border-strong);
+  color: var(--color-text);
 }
 
 .userEmail {
+  font-family: var(--font-mono);
   font-size: 12px;
   color: var(--color-text-muted);
   display: none;
@@ -90,11 +150,12 @@
   padding: var(--space-6) var(--space-5) var(--space-8);
 }
 
-@media (max-width: 860px) {
+@media (max-width: 1099px) {
   /* Brand + search/logout on row 1, nav wraps to a full-width row 2 below it -
-     four labeled nav destinations plus both header actions don't fit one row
-     even at tablet width (~768px), and Direction 1 requires the nav stay
-     labeled, not icon-only. */
+     the M8.1 redesign's wider brand identity block (status dot + "TERMINAL"
+     badge) and segmented-well nav pill need a full 1093px single-row minimum
+     (verified live) - up from the pre-M8.1 860px threshold, which no longer
+     covers the wider header content. */
   .headerInner {
     height: auto;
     flex-wrap: wrap;
@@ -104,13 +165,21 @@
   .nav {
     order: 3;
     flex: 1 0 100%;
+    width: 100%;
+    height: auto;
     flex-wrap: wrap;
-    gap: 0;
   }
   .navLink {
-    padding: var(--space-2);
+    height: 28px;
+    padding: 0 var(--space-2);
   }
   .main {
     padding: var(--space-5) var(--space-4) var(--space-7);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .navLink {
+    transition: none;
   }
 }

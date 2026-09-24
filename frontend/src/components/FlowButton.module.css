@@ -1,0 +1,87 @@
+.button {
+  position: relative;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 100%;
+  height: 44px;
+  padding: 0 var(--space-5);
+  font-family: var(--font-ui);
+  font-size: 14px;
+  font-weight: 600;
+  letter-spacing: var(--text-body-tracking);
+  color: var(--color-accent-contrast);
+  background: var(--color-accent);
+  border: 1px solid var(--color-accent);
+  border-radius: var(--radius-sm);
+  cursor: pointer;
+  overflow: hidden;
+  transition:
+    background-color 0.1s ease,
+    border-color 0.1s ease,
+    opacity 0.1s ease;
+}
+
+.button:hover:not(:disabled) {
+  background: var(--color-accent-strong);
+  border-color: var(--color-accent-strong);
+}
+
+.button:disabled {
+  cursor: not-allowed;
+  opacity: 0.55;
+}
+
+.content {
+  position: relative;
+  z-index: 1;
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-2);
+}
+
+/* Animated running-dashed border, shown on hover and while an atomic commit is
+   in flight - the "money is actively moving" signal from DESIGN_BRIEF_M8.1.md §3.15.3. */
+.border {
+  position: absolute;
+  inset: 0;
+  border-radius: var(--radius-sm);
+  background-image: repeating-linear-gradient(
+    90deg,
+    var(--color-accent-contrast) 0,
+    var(--color-accent-contrast) 6px,
+    transparent 6px,
+    transparent 12px
+  );
+  background-size: 200% 2px;
+  background-repeat: repeat-x;
+  background-position: 0 0, 0 100%;
+  opacity: 0;
+  transition: opacity 0.1s ease;
+  pointer-events: none;
+}
+
+.button:hover:not(:disabled) .border {
+  opacity: 0.35;
+  animation: flow-dash 1.2s linear infinite;
+}
+
+.inFlight .border {
+  opacity: 0.55;
+  animation: flow-dash 0.7s linear infinite;
+}
+
+@keyframes flow-dash {
+  from {
+    background-position-x: 0;
+  }
+  to {
+    background-position-x: -24px;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .border {
+    animation: none !important;
+  }
+}

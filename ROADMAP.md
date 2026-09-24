@@ -150,6 +150,57 @@ Status legend: `[ ]` not started, `[~]` in progress, `[x]` done.
 - [ ] Deployment - deliberately not done yet; local dev server left running for the user to
   inspect before any GitHub/Neon/Render/Vercel decision.
 
+## M8.1 — Frontend structural redesign (post-M8 QA rejection)
+- [x] Reality check: M8's "Direction 1" implementation (commit 45b4c1c) was visually themed
+  (new palette/typography) but structurally unchanged - still generic bordered-box CRUD
+  layouts. Rejected as not a real product redesign; M8.1 is the structural rebuild, picked
+  back up mid-flight this session after an interruption (see MEMORY.md).
+- [x] Antigravity research pass (`DESIGN_BRIEF_M8.1.md`) - live browsing of
+  styles.refero.design, spell.sh, and inspora.design again (15 concrete reference-to-
+  application entries), producing the "Integrated Accounting Workbench" brief: Transfer as a
+  5-stage directional pipeline (Source -> Amount -> Destination -> Double-Entry Manifest ->
+  Commit), wallets as "Account Nodes," zero-shadow 4-tier surface stepping, 4 new
+  Spell-pattern components adopted (`Kbd`, `FlowButton`, `LabelInput`, `BarsSpinner`;
+  `CopyButton` already existed from M8).
+- [x] Structural redesign implemented across Dashboard (currency clusters, never summed
+  across currencies), Transfer (5-stage pipeline + sealed receipt), Activity (dual-leg
+  journal with tree-bracket counterparty rows), Reconciliation (forensic comparison matrix +
+  integrity banner), AppShell (segmented nav rail, terminal identity badge), WalletCard
+  (Account Node anatomy: status row, balance block, in-place deposit drawer with preset
+  chips).
+- [x] First Antigravity visual QA pass (`ANTIGRAVITY_QA_M8.1.md`): verdict PASS with
+  distinction, 0 BLOCKER, 1 IMPORTANT (Transfer stayed single-column above ~1200px instead of
+  the brief's two-pane split view), 4 OPTIONAL (deferred per protocol - only BLOCKER/IMPORTANT
+  get fixed mid-milestone).
+- [x] IMPORTANT finding fixed: `.pipelineGrid` in `TransferPage.module.css` switches to a
+  sticky 2-pane CSS grid (left: source/amount/destination stages, right: manifest + commit,
+  pinned) - gated to >=1180px rather than the brief's nominal 1024px, because live-testing
+  found real horizontal overflow in the 1024-1179px range with a fixed 420px right column;
+  documented in the CSS comment itself, not just here.
+- [x] Antigravity revalidation (targeted, not a full re-QA): confirmed zero overflow at
+  1024px and 1179px (single column), correct sticky 2-pane grid at 1180px and 1440px, both
+  dark/light theme tokens correct at the 1440px split view. 0 BLOCKER, 0 IMPORTANT, 0 new
+  OPTIONAL.
+- [x] Codex QA independent functional regression review: 0 regressions across transfer
+  guards (currency mismatch, insufficient funds), idempotency key lifecycle, reversal
+  eligibility gating, debit/credit leg coloring convention, reconciliation drift fields, and
+  currency-cluster totals; `frontend/API_CONTRACT.md` confirmed still accurate. One
+  pre-existing (not new) observation raised: `reversedTransactionIds` is still best-effort
+  current-page-only (already documented under M6 above) - not a regression, not fixed here.
+- [x] Regression gate: frontend lint (oxlint, 0 errors, only pre-existing
+  `set-state-in-effect` warnings), typecheck + production build both clean, backend build
+  clean (0 warnings/errors, confirming the frontend-only diff didn't touch backend), backend
+  unit tests re-run for due diligence (54 Domain + 90 Application, all green). Postgres-gated
+  integration tests not re-run - no backend files changed this milestone, last confirmed
+  green 2026-09-23 (see MEMORY.md). No frontend test runner is configured in this repo
+  (unchanged from every prior milestone - nothing to run).
+- [x] Light security sanity check (not a full SECURITY GATE - this milestone touches no
+  API/auth/authz/data/tenant-isolation surface, frontend presentation only): diff scanned
+  clean for `dangerouslySetInnerHTML`/`.innerHTML`/`eval`/hardcoded secrets/raw token
+  storage - none found.
+- [ ] Deployment - still deliberately not done; local dev server left running on
+  `localhost:5173` for inspection before any GitHub/Neon/Render/Vercel decision.
+
 ## Known environment blockers (see MEMORY.md for detail)
 - ~~Docker CLI not available locally~~ — resolved 2026-09-23: Docker Desktop's WSL
   integration works via `docker.exe` from this WSL distro (Docker Desktop just

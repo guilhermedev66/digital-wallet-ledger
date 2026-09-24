@@ -70,6 +70,23 @@ research task. It also runs at 4-space terminal indentation. Antigravity's
 sourcing has been reliable when it flags uncertainty explicitly (e.g. bot-
 checkpoint-blocked deep URLs vs. verified feed data) - trust the caveats when
 it distinguishes.
+For a *revalidation* task scoped to one already-running localhost app (not
+multi-site research), the loop is shorter but still real - the M8.1 targeted
+revalidation took 3 rounds of `ask --raw` approval (a `maestri list` prompt,
+a `find` prompt, then it ran uninterrupted through portal navigate/resize/
+evaluate/screenshot once past those two). Approving `maestri list` with
+option 3 ("always allow ... commands that start with 'maestri'", persisted to
+Antigravity's own settings.json) removed prompts for every subsequent
+`maestri portal ...` call in that same task, which is most of a real QA
+pass's command volume - worth doing on the first `maestri list` prompt of any
+session rather than re-approving it every time. Non-`maestri` commands (find,
+curl, node -e) still prompt individually regardless.
+The ask-back pattern (tell it to `maestri ask "Claude Code" "<result>"` when
+done) works well combined with polling `maestri check "Antigravity"`
+occasionally while it works - its terminal snapshot shows real progress
+(which portal/file command it's currently on), so a `check` is a legitimate
+one-shot status read, not a blind guess, and its final report arrives as its
+own message rather than needing to be scraped from `check` output.
 
 ## Frontend security note (2026-09-22, read-only audit, no blockers)
 

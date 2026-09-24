@@ -1,103 +1,232 @@
 .title {
-  font-size: 20px;
+  font-size: var(--text-h1-size);
+  font-weight: var(--text-h1-weight);
+  letter-spacing: var(--text-h1-tracking);
   margin-bottom: var(--space-5);
 }
 
-.layout {
-  display: grid;
-  grid-template-columns: minmax(0, 420px) minmax(0, 380px);
-  gap: var(--space-5);
-  align-items: start;
+/* --- The pipeline shell --- */
+/* Single column up to 1023px (brief §3.14 "Desktop Standard" starts the two-pane
+   workbench at 1024px - stages 1-3 left, the manifest+commit pinned right). */
+
+.pipeline {
+  max-width: 640px;
 }
 
-@media (max-width: 860px) {
-  .layout {
-    grid-template-columns: minmax(0, 1fr);
+.formError {
+  margin-bottom: var(--space-3);
+}
+
+.pipelineGrid {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2);
+}
+
+.pipelineLeft,
+.pipelineRight {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2);
+  min-width: 0;
+}
+
+/* Two-pane desktop workbench (brief §3.14 "Desktop Standard"). Gated past 1024px's
+   nominal breakpoint to 1180px - at 1024-1179px the shell's own side padding plus a
+   fixed 420px right column left too little room for the left pane's content and
+   caused real horizontal page overflow (verified live, not theoretical). */
+@media (min-width: 1180px) {
+  .pipeline {
+    max-width: 1040px;
+  }
+
+  .pipelineGrid {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) 420px;
+    align-items: start;
+    gap: var(--space-6);
+  }
+
+  .pipelineRight {
+    position: sticky;
+    top: var(--space-5);
+  }
+
+  .formError {
+    grid-column: 1 / -1;
   }
 }
 
-.panel {
-  border: 1px solid var(--color-border-strong);
-  border-radius: var(--radius-md);
-  background: var(--color-surface);
-  padding: var(--space-5);
-  display: flex;
-  flex-direction: column;
+/* Each stage: a numbered badge + connecting hairline track on the left,
+   the stage's content on the right. DESIGN_BRIEF_M8.1.md §3.5.2. */
+.stage {
+  display: grid;
+  grid-template-columns: 28px 1fr;
   gap: var(--space-4);
 }
 
-.select {
-  height: 38px;
-  padding: 0 var(--space-3);
-  background: var(--color-surface);
-  border: 1px solid var(--color-border-strong);
-  border-radius: var(--radius-sm);
-  color: var(--color-text);
-}
-
-.selectField {
+.stageTrack {
   display: flex;
   flex-direction: column;
-  gap: var(--space-1);
-  text-align: left;
+  align-items: center;
 }
 
-.selectLabel {
-  font-size: 13px;
+.stageBadge {
+  flex-shrink: 0;
+  width: 22px;
+  height: 22px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-family: var(--font-mono);
+  font-size: 11px;
   font-weight: 600;
   color: var(--color-text-muted);
-}
-
-.availableBalance {
-  font-size: 12px;
-  color: var(--color-text-faint);
-}
-
-.postedLabel {
-  font-size: 13px;
-  font-weight: 600;
-  color: var(--color-credit);
-}
-
-.receipt {
-  display: flex;
-  flex-direction: column;
-  gap: var(--space-3);
-}
-
-.receiptRow {
-  display: flex;
-  justify-content: space-between;
-  font-size: 13px;
-  padding: var(--space-2) 0;
-  border-bottom: 1px solid var(--color-border);
-}
-
-.receiptLabel {
-  color: var(--color-text-muted);
-}
-
-.preview {
-  border: 1px solid var(--color-border);
-  border-radius: var(--radius-md);
   background: var(--color-surface-elevated);
-  padding: var(--space-5);
+  border: 1px solid var(--color-border-strong);
+  border-radius: 50%;
+}
+
+.stageLine {
+  flex: 1;
+  width: 1px;
+  min-height: var(--space-4);
+  background: var(--color-border);
+  margin-top: var(--space-1);
+}
+
+.stage:last-of-type .stageLine {
+  display: none;
+}
+
+.stageBody {
+  padding-bottom: var(--space-6);
   display: flex;
   flex-direction: column;
   gap: var(--space-3);
+  min-width: 0;
 }
 
-.previewTitle {
-  font-size: 12px;
-  font-weight: 700;
-  letter-spacing: 0.06em;
+.stageLabel {
+  font-size: var(--text-label-size);
+  font-weight: var(--text-label-weight);
+  letter-spacing: var(--text-label-tracking);
   text-transform: uppercase;
   color: var(--color-text-muted);
 }
 
-.previewNote {
+.stageHint {
   font-size: 12px;
   color: var(--color-text-faint);
+}
+
+/* --- Stage 1: source account card --- */
+
+.accountCard {
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-md);
+  background: var(--color-surface);
+  overflow: hidden;
+  transition: border-color 0.1s ease;
+}
+
+.accountCard:focus-within,
+.accountCard:hover {
+  border-color: var(--color-border-strong);
+}
+
+.accountSelect {
+  width: 100%;
+  height: 44px;
+  padding: 0 var(--space-4);
+  background: transparent;
+  border: none;
+  border-bottom: 1px solid var(--color-border);
+  color: var(--color-text);
+  font-size: var(--text-body-size);
+  font-weight: 600;
+}
+
+.accountCardFooter {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-2);
+  padding: var(--space-2) var(--space-4);
+  background: var(--color-surface-sunken);
+}
+
+.accountCardFooter :global(.mono) {
+  font-size: 11px;
+  color: var(--color-text-faint);
+}
+
+.accountCardBalance {
+  font-family: var(--font-mono);
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--color-text-muted);
+  white-space: nowrap;
+}
+
+/* --- Stage 2: amount conduit quick chips --- */
+
+.quickChips {
+  display: flex;
+  gap: var(--space-1);
+}
+
+.quickChip {
+  height: 26px;
+  padding: 0 var(--space-2);
+  font-family: var(--font-mono);
+  font-size: 11px;
+  font-weight: 600;
+  color: var(--color-text-muted);
+  background: var(--color-surface-elevated);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-sm);
+  cursor: pointer;
+  transition:
+    border-color 0.1s ease,
+    color 0.1s ease;
+}
+
+.quickChip:hover:not(:disabled) {
+  border-color: var(--color-border-strong);
+  color: var(--color-text);
+}
+
+.quickChip:disabled {
+  cursor: not-allowed;
+  opacity: 0.5;
+}
+
+/* --- Stage 3: destination currency-match pill --- */
+
+.matchPill {
+  flex-shrink: 0;
+  font-family: var(--font-mono);
+  font-size: 10px;
+  font-weight: 600;
+  letter-spacing: 0.02em;
+  color: var(--color-credit);
+  white-space: nowrap;
+}
+
+/* --- Stage 4: double-entry manifest --- */
+
+.manifest {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-3);
+  min-width: 0;
+}
+
+.manifest table {
+  display: block;
+  max-width: 100%;
+  overflow-x: auto;
 }
 
 .legLabel {
@@ -107,37 +236,70 @@
   color: var(--color-text-muted);
 }
 
-.idempotencyRow {
+/* Debit-normal convention (see MEMORY.md "Balance sign convention"): the Debit leg's
+   value stays neutral ink (the shared .amount class's default color), the Credit leg's
+   value is the emerald credit accent - same pairing already fixed in ActivityPage.tsx
+   this session. Do not swap these. */
+.legAmountCredit {
+  color: var(--color-credit);
+}
+
+.zeroSumStrip {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: var(--space-2) var(--space-3);
+  background: var(--color-credit-bg);
+  border: 1px solid var(--color-credit);
+  border-radius: var(--radius-sm);
+  font-family: var(--font-mono);
+  font-size: 11px;
+}
+
+.zeroSumOk {
+  font-weight: 700;
+  color: var(--color-credit);
+}
+
+/* --- Stage 5: commit + demoted idempotency audit strip --- */
+
+.commitStage {
   display: flex;
   flex-direction: column;
-  gap: var(--space-1);
-  padding-top: var(--space-3);
-  border-top: 1px solid var(--color-border);
+  gap: var(--space-2);
 }
 
-.previewLabel {
-  font-size: 11px;
-  font-weight: 600;
-  text-transform: uppercase;
-  letter-spacing: 0.04em;
-  color: var(--color-text-muted);
-}
-
-.idempotencyValue {
+.auditStrip {
   display: flex;
   align-items: center;
   gap: var(--space-1);
+  padding: var(--space-2) var(--space-3);
+  background: var(--color-surface-sunken);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-sm);
 }
 
-.idempotencyValue :global(.mono) {
+.auditStrip :global(.mono) {
   font-size: 11px;
   color: var(--color-pending);
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
+  flex: 1;
+  min-width: 0;
+}
+
+.auditLabel {
+  flex-shrink: 0;
+  font-size: 10px;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  color: var(--color-text-faint);
 }
 
 .regenerate {
+  flex-shrink: 0;
   border: none;
   background: transparent;
   color: var(--color-text-faint);
@@ -145,9 +307,62 @@
   text-decoration: underline;
   cursor: pointer;
   padding: 0;
-  margin-left: auto;
 }
 
 .regenerate:hover {
   color: var(--color-text);
+}
+
+.auditNote {
+  font-size: 11px;
+  color: var(--color-text-faint);
+}
+
+/* --- Sealed receipt (success state) --- */
+
+.receiptPanel {
+  max-width: 560px;
+  border: 1px solid var(--color-credit);
+  border-radius: var(--radius-md);
+  background: var(--color-surface);
+  padding: var(--space-5);
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-4);
+}
+
+.sealedBanner {
+  font-size: 13px;
+  font-weight: 700;
+  color: var(--color-credit);
+}
+
+.receipt {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2);
+}
+
+.receiptRow {
+  display: flex;
+  justify-content: space-between;
+  gap: var(--space-3);
+  font-size: 13px;
+  padding: var(--space-2) 0;
+  border-bottom: 1px solid var(--color-border);
+}
+
+.receiptLabel {
+  color: var(--color-text-muted);
+}
+
+.receiptActions {
+  display: flex;
+}
+
+@media (max-width: 480px) {
+  .stage {
+    grid-template-columns: 22px 1fr;
+    gap: var(--space-3);
+  }
 }

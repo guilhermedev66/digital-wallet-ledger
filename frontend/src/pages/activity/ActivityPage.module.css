@@ -8,7 +8,9 @@
 }
 
 .title {
-  font-size: 20px;
+  font-size: var(--text-h1-size);
+  font-weight: var(--text-h1-weight);
+  letter-spacing: var(--text-h1-tracking);
 }
 
 .subtitle {
@@ -21,9 +23,14 @@
 .select {
   height: 38px;
   padding: 0 var(--space-3);
-  background: var(--color-surface);
-  border: 1px solid var(--color-border-strong);
+  background: var(--color-surface-sunken);
+  border: 1px solid var(--color-border);
   border-radius: var(--radius-sm);
+  color: var(--color-text);
+}
+
+.select:hover {
+  border-color: var(--color-border-strong);
 }
 
 .panel {
@@ -33,42 +40,163 @@
   overflow: hidden;
 }
 
-.positive {
-  color: var(--color-credit);
+/* Decorative column labels above the journal - the entries themselves carry the
+   real labels inline, so this row is hidden from assistive tech. */
+.journalHead {
+  display: grid;
+  grid-template-columns: 1fr 1fr 1fr auto;
+  gap: var(--space-4);
+  padding: var(--space-2) var(--space-4);
+  font-size: var(--text-label-size);
+  font-weight: var(--text-label-weight);
+  letter-spacing: var(--text-label-tracking);
+  text-transform: uppercase;
+  color: var(--color-text-muted);
+  border-bottom: 1px solid var(--color-border-strong);
 }
 
-.legAccount {
-  display: block;
-  font-size: 11px;
+@media (max-width: 768px) {
+  .journalHead {
+    display: none;
+  }
+}
+
+.journal {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+}
+
+.entry {
+  padding: var(--space-4);
+  border-bottom: 1px solid var(--color-border);
+}
+
+.entry:last-child {
+  border-bottom: none;
+}
+
+.entry:hover {
+  background: var(--color-surface-sunken);
+}
+
+.entryHead {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: var(--space-3);
+  flex-wrap: wrap;
+  margin-bottom: var(--space-2);
+}
+
+.entryMeta {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+  flex-wrap: wrap;
+}
+
+.entryDate {
+  font-size: var(--text-mono-sm-size);
+  color: var(--color-text-muted);
+}
+
+.typeBadge {
+  display: inline-flex;
+  align-items: center;
+  height: 18px;
+  padding: 0 var(--space-2);
+  font-size: 10px;
+  font-weight: 600;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  color: var(--color-text-muted);
+  background: var(--color-surface-elevated);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-sm);
+}
+
+.typeBadgeReversal {
+  color: var(--color-pending);
+  border-color: var(--color-pending);
+}
+
+.reversedTag {
+  font-size: 10px;
+  font-weight: 600;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
   color: var(--color-text-faint);
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
-  max-width: 160px;
 }
 
-.ownLeg {
+.entryId {
+  display: flex;
+  align-items: center;
+  gap: var(--space-1);
+  font-size: var(--text-mono-sm-size);
+  color: var(--color-text-faint);
+}
+
+.reversalNote {
+  display: flex;
+  align-items: center;
+  gap: var(--space-1);
+  font-size: 12px;
+  color: var(--color-text-muted);
+  margin: 0 0 var(--space-2);
+}
+
+.legs {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.leg {
+  display: grid;
+  grid-template-columns: 90px 1fr auto;
+  align-items: center;
+  gap: var(--space-3);
+  padding: var(--space-2) var(--space-3);
+  border-radius: var(--radius-sm);
+}
+
+.legOwn {
   background: var(--color-surface-elevated);
   font-weight: 600;
 }
 
-@media (max-width: 640px) {
-  /* A full wallet UUID has nowhere to truncate to at this width - let it wrap onto
-     multiple lines instead of forcing horizontal scroll (still capped to the row's
-     available width via the shared stacked-row flex layout in Table.module.css). */
-  .legAccount {
-    max-width: 60%;
-    white-space: normal;
-    overflow-wrap: anywhere;
-    text-overflow: clip;
-  }
+.legCounterparty {
+  grid-template-columns: 24px 90px 1fr auto;
+  padding-left: var(--space-4);
+  color: var(--color-text-muted);
+  font-weight: 400;
 }
 
-.footer {
-  padding: var(--space-4);
+.treeBracket {
+  font-family: var(--font-mono);
+  color: var(--color-text-faint);
+}
+
+.legDirection {
+  font-size: 12px;
+  color: var(--color-text-muted);
+}
+
+.legAccount {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.positive {
+  color: var(--color-credit);
+}
+
+.entryActions {
+  margin-top: var(--space-2);
   display: flex;
-  justify-content: center;
-  border-top: 1px solid var(--color-border);
+  justify-content: flex-end;
 }
 
 .reverseConfirm {
@@ -78,4 +206,26 @@
   flex-wrap: wrap;
   font-size: 12px;
   color: var(--color-text-muted);
+}
+
+@media (max-width: 480px) {
+  .leg {
+    grid-template-columns: 1fr;
+    gap: var(--space-1);
+  }
+  .legCounterparty {
+    grid-template-columns: 1fr;
+    padding-left: var(--space-5);
+  }
+  .legAccount {
+    white-space: normal;
+    overflow-wrap: anywhere;
+  }
+}
+
+.footer {
+  padding: var(--space-4);
+  display: flex;
+  justify-content: center;
+  border-top: 1px solid var(--color-border);
 }

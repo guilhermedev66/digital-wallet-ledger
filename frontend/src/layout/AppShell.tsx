@@ -3,6 +3,7 @@ import { NavLink, Outlet } from 'react-router-dom'
 import { useAuth } from '../auth/AuthContext'
 import { Button } from '../components/Button'
 import { CommandPalette } from '../components/CommandPalette'
+import { Kbd } from '../components/Kbd'
 import { ThemeToggle } from '../components/ThemeToggle'
 import styles from './AppShell.module.css'
 
@@ -51,7 +52,11 @@ export function AppShell() {
       </a>
       <header className={styles.header}>
         <div className={styles.headerInner}>
-          <span className={styles.brand}>Wallet &amp; Ledger</span>
+          <div className={styles.identity}>
+            <span className={styles.brand}>Wallet &amp; Ledger</span>
+            <span className={styles.statusDot} aria-hidden="true" />
+            <span className={styles.terminalBadge + ' mono'}>TERMINAL</span>
+          </div>
           <nav className={styles.nav} aria-label="Primary">
             {NAV_ITEMS.map((item) => (
               <NavLink
@@ -73,7 +78,8 @@ export function AppShell() {
               className={styles.paletteButton}
               onClick={openPalette}
             >
-              Search <span className="mono">&#8984;K</span>
+              <span>Search</span>
+              <Kbd keys={['⌘', 'K']} />
             </button>
             <ThemeToggle />
             <span className={styles.userEmail}>{user?.email}</span>

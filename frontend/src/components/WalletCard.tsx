@@ -1,7 +1,5 @@
 import type { ReactNode } from 'react'
 import { Link } from 'react-router-dom'
-import buttonStyles from './Button.module.css'
-import { Button } from './Button'
 import { CopyButton } from './CopyButton'
 import type { WalletSummary } from '../hooks/useWallets'
 import { formatAmount } from '../lib/money'
@@ -30,40 +28,48 @@ export function WalletCard({
 
   return (
     <div className={styles.card}>
+      <div className={styles.statusRow}>
+        <span className={styles.currency}>{wallet.currency}</span>
+        <span className={styles.status}>
+          <span className={styles.statusDot} aria-hidden="true" />
+          NODE ACTIVE
+        </span>
+      </div>
+
       <div className={styles.identity}>
-        <div className={styles.nameRow}>
-          <span className={styles.name}>{name}</span>
-          <span className={styles.currency}>{wallet.currency}</span>
-        </div>
+        <span className={styles.name}>{name}</span>
         <div className={styles.idRow}>
           <span className={styles.id + ' mono'}>{wallet.id}</span>
           <CopyButton value={wallet.id} label="wallet ID" />
         </div>
       </div>
 
-      <span key={wallet.balanceMinorUnits} className={styles.balance + ' amount'}>
-        {formatAmount(wallet.balanceMinorUnits, wallet.currency)}
-      </span>
+      <div className={styles.balanceBlock}>
+        <span className={styles.balanceLabel}>Derived balance</span>
+        <span key={wallet.balanceMinorUnits} className={styles.balance + ' mono'}>
+          {formatAmount(wallet.balanceMinorUnits, wallet.currency)}
+        </span>
+      </div>
 
       <span className={styles.telemetry}>{telemetry}</span>
 
       <div className={styles.actions}>
-        {!isFunding && <Button onClick={onToggleFund}>+ Deposit</Button>}
-        <Link
-          to={`/transfer?wallet=${wallet.id}`}
-          className={[buttonStyles.button, buttonStyles.secondary].join(' ')}
-        >
+        {!isFunding && (
+          <button type="button" className={styles.actionItem} onClick={onToggleFund}>
+            + Deposit
+          </button>
+        )}
+        <Link to={`/transfer?wallet=${wallet.id}`} className={styles.actionItem}>
           → Transfer
         </Link>
-        <Link
-          to={`/activity?wallet=${wallet.id}`}
-          className={[buttonStyles.button, buttonStyles.secondary].join(' ')}
-        >
+        <Link to={`/activity?wallet=${wallet.id}`} className={styles.actionItem}>
           Activity
         </Link>
       </div>
 
-      {fundingSlot}
+      <div className={[styles.drawer, isFunding ? styles.drawerOpen : ''].join(' ')}>
+        <div className={styles.drawerInner}>{fundingSlot}</div>
+      </div>
     </div>
   )
 }
