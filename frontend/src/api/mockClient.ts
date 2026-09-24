@@ -105,6 +105,9 @@ export class MockApiClient implements ApiClient {
     this.currentUserId = token ? userIdFromToken(token) : null
   }
 
+  // Mock sessions never expire server-side, so there's nothing to react to.
+  setUnauthorizedHandler(_handler: (() => void) | null) {}
+
   async register(email: string, password: string): Promise<RegisteredUser> {
     await delay()
     if (this.db.users.some((u) => u.email.toLowerCase() === email.toLowerCase())) {

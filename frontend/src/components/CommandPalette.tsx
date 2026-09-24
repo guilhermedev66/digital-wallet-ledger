@@ -119,10 +119,10 @@ export function CommandPalette({ isOpen, onClose }: { isOpen: boolean; onClose: 
         </ul>
         <div className={styles.hint}>
           <span className={styles.hintItem}>
-            <Kbd keys={['↑', '↓']} /> navigate
+            <Kbd keys={['up', 'down']} /> navigate
           </span>
           <span className={styles.hintItem}>
-            <Kbd keys={['↵']} /> select
+            <Kbd keys={['enter']} /> select
           </span>
           <span className={styles.hintItem}>
             <Kbd keys={['esc']} /> close

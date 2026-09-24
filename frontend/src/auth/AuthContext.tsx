@@ -8,6 +8,11 @@ const SESSION_STORAGE_KEY = 'walletledger.session.v1'
 interface StoredSession {
   user: User
   token: string
+  expiresAtUtc?: string
+}
+
+function isExpired(session: StoredSession): boolean {
+  return session.expiresAtUtc !== undefined && Date.parse(session.expiresAtUtc) <= Date.now()
 }
 
 interface AuthContextValue {
@@ -36,9 +41,11 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
   useEffect(() => {
     const stored = readStoredSession()
-    if (stored) {
+    if (stored && !isExpired(stored)) {
       apiClient.setAuthToken(stored.token)
       setUser(stored.user)
+    } else if (stored) {
+      localStorage.removeItem(SESSION_STORAGE_KEY)
     }
     setIsInitializing(false)
   }, [])
@@ -54,6 +61,11 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       setUser(null)
     }
   }
+
+  useEffect(() => {
+    apiClient.setUnauthorizedHandler(() => persist(null))
+    return () => apiClient.setUnauthorizedHandler(null)
+  }, [])
 
   const value = useMemo<AuthContextValue>(
     () => ({

@@ -79,7 +79,7 @@ export function AppShell() {
               onClick={openPalette}
             >
               <span>Search</span>
-              <Kbd keys={['⌘', 'K']} />
+              <Kbd keys={['cmd', 'k']} />
             </button>
             <ThemeToggle />
             <span className={styles.userEmail}>{user?.email}</span>

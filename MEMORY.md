@@ -45,6 +45,31 @@ financial/domain model and why.
   frontend/node_modules/.vite`, restart `npm run dev`. Don't trust a live-reloaded
   browser check of a just-edited file without this if the change doesn't show up -
   it's the cache, not a wrong edit.
+  **Confirmed again in M8.2** (a CSS-only edit kept serving old rules through several
+  fresh Playwright contexts until the dev server itself was restarted) - if a
+  browser-driven QA check of a just-made edit doesn't show the change, restart Vite
+  before assuming the edit was wrong; don't debug CSS specificity against stale output.
+- `dotnet run --project ... --no-launch-profile` breaks custom env-var propagation
+  across the WSL→`dotnet.exe` interop boundary (double-underscore config vars like
+  `JWT__SIGNINGKEY`, exported in the shell via `set -a && source .env`, silently don't
+  reach the process - `Configuration 'Jwt:SigningKey' is not set` at startup even
+  though `env | grep JWT` in the same shell shows it correctly set). Root cause not
+  fully diagnosed, but reproducible: swap back to `--launch-profile http` (which does
+  work) and override the bind address by appending `-- --urls "http://0.0.0.0:PORT"`
+  instead of setting `ASPNETCORE_URLS` as an env var (that gets silently overridden by
+  the launch profile's own `applicationUrl` either way).
+- The API only needs to bind `0.0.0.0` (not just `localhost`) to be reachable from a
+  **Linux process running inside this WSL distro** (e.g. a Playwright-launched
+  Chromium) - `localhost`/`127.0.0.1` from a WSL-side process does NOT reach a
+  Windows-bound `dotnet.exe` server even when Kestrel listens on `0.0.0.0` (WSL2's
+  loopback-forwarding doesn't cover this direction reliably here). The fix: connect
+  from WSL-side tooling to the Windows host's address on the WSL virtual network
+  instead of `localhost` - `ip route show default`'s third field (the gateway IP, e.g.
+  `172.21.128.1`) reaches the same `0.0.0.0`-bound port from both sides. Set the
+  frontend's `VITE_API_BASE_URL` to that gateway IP (not `localhost`) whenever a
+  WSL-side browser (Playwright, `firecrawl`, etc.) needs to exercise the real API -
+  `curl.exe`/an actual Windows browser reach `localhost` fine either way, so this only
+  matters for WSL-native tooling.
 
 ## Multi-agent topology (actual, not aspirational)
 

@@ -1,29 +1,81 @@
+/* Adapted from Spell UI's real Copy Button (docs/design/spell/copy-button.json).
+   Preserved: relative positioning with an absolutely-stacked icon pair, disabled
+   while copied, active:scale press feedback. Tailwind utility classes converted
+   to tokens.css custom properties. */
 .button {
+  position: relative;
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  min-width: 22px;
-  height: 22px;
-  padding: 0 var(--space-1);
   border: 1px solid transparent;
   background: transparent;
   border-radius: var(--radius-sm);
   color: var(--color-text-faint);
   cursor: pointer;
-  transition: background-color 0.1s ease, color 0.1s ease;
+  transition:
+    transform 0.2s ease,
+    background-color 0.1s ease,
+    color 0.1s ease,
+    border-color 0.1s ease;
 }
 
-.button:hover {
+.button:hover:not(:disabled) {
   color: var(--color-text);
   background: var(--color-surface-sunken);
   border-color: var(--color-border);
 }
 
-.status {
-  font-size: 10px;
-  font-weight: 600;
-  text-transform: uppercase;
-  letter-spacing: 0.04em;
+.button:active:not(:disabled) {
+  transform: scale(0.97);
+}
+
+.button:disabled {
   color: var(--color-credit);
-  white-space: nowrap;
+  cursor: default;
+}
+
+.sizeSm {
+  min-width: 20px;
+  height: 20px;
+}
+
+.sizeDefault {
+  min-width: 22px;
+  height: 22px;
+}
+
+.sizeLg {
+  min-width: 28px;
+  height: 28px;
+}
+
+.iconLayer {
+  display: inline-flex;
+  transition:
+    opacity 0.2s ease,
+    transform 0.2s ease,
+    filter 0.2s ease;
+}
+
+.iconAbsolute {
+  position: absolute;
+}
+
+.iconVisible {
+  opacity: 1;
+  transform: scale(1);
+  filter: blur(0);
+}
+
+.iconHidden {
+  opacity: 0;
+  transform: scale(0.7);
+  filter: blur(2px);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .button,
+  .iconLayer {
+    transition: none;
+  }
 }

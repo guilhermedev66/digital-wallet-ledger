@@ -1,21 +1,82 @@
-.header {
+/* Header row: title + the single primary action ("New wallet"). Kept apart from
+   the stat band below (M8/M8.1 used to fuse a title + button + numbers into one
+   flex row - the "financial command center" framing reads more clearly as
+   distinct bands: heading, then instrument panel, then content). */
+.pageHeader {
   display: flex;
-  align-items: baseline;
+  align-items: center;
   justify-content: space-between;
   gap: var(--space-4);
-  margin-bottom: var(--space-5);
   flex-wrap: wrap;
 }
 
-.title {
-  font-size: 20px;
+.commandTitle {
+  font-family: var(--font-mono);
+  font-size: var(--text-h2-size);
+  font-weight: var(--text-h2-weight);
+  letter-spacing: 0.02em;
+  text-transform: uppercase;
+  color: var(--color-text-muted);
+  flex-shrink: 0;
 }
 
 .subtitle {
   font-size: 13px;
   color: var(--color-text-faint);
-  margin-top: var(--space-1);
+  margin: var(--space-2) 0 var(--space-5);
   max-width: 64ch;
+}
+
+/* Ramp "wash card" (M8_1_VISUAL_REFERENCES.md #2) carried forward as its own
+   banded instrument panel, following Brex's "Customer Logo Grid" discipline: a
+   flat, borderless, filled section with a centered label over a uniform grid -
+   here a portfolio-wide stat grid instead of a logo grid, still built only from
+   real useWallets data. Section gap below is Brex's 48-80px range
+   (--space-7 = 48px), decoupling this band from the currency groups beneath it. */
+.statBand {
+  background: var(--color-surface-sunken);
+  border-radius: var(--radius-md);
+  padding: var(--space-5);
+  margin-bottom: var(--space-7);
+}
+
+.statBandLabel {
+  display: block;
+  text-align: center;
+  font-size: var(--text-label-size);
+  font-weight: var(--text-label-weight);
+  letter-spacing: var(--text-label-tracking);
+  text-transform: uppercase;
+  color: var(--color-text-faint);
+  margin-bottom: var(--space-4);
+}
+
+.statGrid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(120px, 1fr));
+  gap: var(--space-4);
+}
+
+.statCell {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 1px;
+  text-align: center;
+}
+
+.statCellValue {
+  font-size: var(--text-mono-lg-size);
+  font-weight: var(--text-mono-lg-weight);
+  color: var(--color-text);
+}
+
+.statCellLabel {
+  font-size: 10px;
+  font-weight: 600;
+  letter-spacing: 0.05em;
+  text-transform: uppercase;
+  color: var(--color-text-faint);
 }
 
 .loading {
@@ -36,26 +97,37 @@
   gap: var(--space-6);
 }
 
+/* Brex "Feature Category Card" applied at section level: a banded, borderless
+   panel (Fog-on-Paper in Brex's own light system; here the darker
+   surface-sunken band sets off the brighter wallet cards inside it, same
+   contrast direction) instead of a flat list separated only by a hairline
+   under the heading. Each currency now reads as its own instrument panel. */
 .group {
   display: flex;
   flex-direction: column;
-  gap: var(--space-3);
+  gap: var(--space-4);
+  background: var(--color-surface-sunken);
+  border-radius: var(--radius-md);
+  padding: var(--space-5);
 }
 
+/* No visible border between header and grid - separation is spacing alone
+   (the .group gap above), per Brex's Feature Category Card do/don't. */
 .groupHeader {
   display: flex;
-  align-items: flex-end;
+  align-items: flex-start;
   justify-content: space-between;
   gap: var(--space-3);
   flex-wrap: wrap;
-  border-bottom: 1px solid var(--color-border);
-  padding-bottom: var(--space-3);
 }
 
+/* Heading + body stacked, not baseline-inline - the vertical block Brex's
+   Feature Category Card describes ("heading in Ink 20-24px weight 600, body
+   in Graphite 14-16px weight 400"), mapped onto this project's own tokens. */
 .groupHeading {
   display: flex;
-  align-items: baseline;
-  gap: var(--space-2);
+  flex-direction: column;
+  gap: 2px;
 }
 
 .groupTitle {
@@ -66,12 +138,10 @@
   color: var(--color-text);
 }
 
-.groupCount {
-  font-size: var(--text-label-size);
-  font-weight: var(--text-label-weight);
-  letter-spacing: var(--text-label-tracking);
-  text-transform: uppercase;
-  color: var(--color-text-faint);
+.groupBody {
+  font-size: var(--text-body-size);
+  font-weight: var(--text-body-weight);
+  color: var(--color-text-muted);
 }
 
 .groupTotalBlock {
@@ -116,9 +186,17 @@
   padding-top: var(--space-3);
   border-top: 1px solid var(--color-border);
   display: flex;
-  gap: var(--space-3);
-  align-items: flex-end;
-  flex-wrap: wrap;
+  flex-direction: column;
+  gap: var(--space-2);
+}
+
+.fundLabel {
+  font-family: var(--font-ui);
+  font-size: var(--text-label-size);
+  font-weight: var(--text-label-weight);
+  letter-spacing: var(--text-label-tracking);
+  text-transform: uppercase;
+  color: var(--color-text-muted);
 }
 
 .inlineFormActions {
@@ -147,10 +225,13 @@
   color: var(--color-text);
 }
 
-.presetChips {
+/* Quick-fill row, now its own line above the paired amount field + submit
+   button (previously embedded inside the input as a suffix slot) - reads as
+   "pick a preset, or type your own amount and add it" instead of a field with
+   controls buried inside it. */
+.presetRow {
   display: flex;
   gap: var(--space-1);
-  flex-shrink: 0;
 }
 
 .presetChip {
@@ -175,6 +256,51 @@
 }
 
 .presetChip:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+/* Brex "Email Capture Input": the field and its one action are a single
+   horizontal unit with a 4-8px gap (--space-2 = 8px), not a field followed by
+   a detached row of equal-weight buttons. */
+.depositPair {
+  display: flex;
+  align-items: flex-end;
+  gap: var(--space-2);
+}
+
+.depositInput {
+  flex: 1;
+  min-width: 0;
+}
+
+.depositSubmit {
+  flex-shrink: 0;
+}
+
+/* Brex "Ghost Link Button": no background, no border, lower-commitment than
+   the filled primary action beside it - Cancel demoted from an equal-weight
+   Button to a plain text affordance, keeping exactly one filled accent
+   control per region. */
+.ghostCancel {
+  align-self: flex-start;
+  background: transparent;
+  border: none;
+  padding: 0;
+  font-family: var(--font-ui);
+  font-size: 12px;
+  font-weight: 500;
+  color: var(--color-text-faint);
+  text-decoration: underline;
+  text-underline-offset: 2px;
+  cursor: pointer;
+}
+
+.ghostCancel:hover:not(:disabled) {
+  color: var(--color-text-muted);
+}
+
+.ghostCancel:disabled {
   opacity: 0.5;
   cursor: not-allowed;
 }

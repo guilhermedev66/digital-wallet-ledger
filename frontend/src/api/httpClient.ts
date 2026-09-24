@@ -14,6 +14,7 @@ import { ApiError } from './types'
 
 export class HttpApiClient implements ApiClient {
   private token: string | null = null
+  private onUnauthorized: (() => void) | null = null
   private readonly baseUrl: string
 
   constructor(baseUrl: string) {
@@ -24,7 +25,12 @@ export class HttpApiClient implements ApiClient {
     this.token = token
   }
 
+  setUnauthorizedHandler(handler: (() => void) | null) {
+    this.onUnauthorized = handler
+  }
+
   private async request<T>(path: string, init?: RequestInit): Promise<T> {
+    const hadToken = this.token !== null
     const response = await fetch(`${this.baseUrl}${path}`, {
       ...init,
       headers: {
@@ -36,6 +42,12 @@ export class HttpApiClient implements ApiClient {
 
     if (!response.ok) {
       const body = await response.json().catch(() => null)
+      // A 401 on a request that carried a token means the session (usually the
+      // token) is stale/expired server-side, not that the request was never
+      // authenticated - drop it so the app bounces to /login instead of
+      // showing a raw "Request failed with status 401" while still looking
+      // logged in.
+      if (response.status === 401 && hadToken) this.onUnauthorized?.()
       throw new ApiError(
         body?.message ?? `Request failed with status ${response.status}`,
         response.status,
@@ -64,7 +76,11 @@ export class HttpApiClient implements ApiClient {
       method: 'POST',
       body: JSON.stringify({ email, password }),
     })
-    return { user: { id: result.userId, email: result.email }, token: result.accessToken }
+    return {
+      user: { id: result.userId, email: result.email },
+      token: result.accessToken,
+      expiresAtUtc: result.expiresAtUtc,
+    }
   }
 
   listWallets() {

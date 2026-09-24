@@ -5,102 +5,70 @@
   padding: var(--space-4);
   display: flex;
   flex-direction: column;
-  transition:
-    border-color 0.08s ease,
-    background-color 0.08s ease;
+  transition: border-color 0.12s ease;
 }
 
 .card:hover {
   border-color: var(--color-border-strong);
-  background: var(--color-surface-elevated);
 }
 
-.statusRow {
+.identityRow {
   display: flex;
   align-items: center;
-  justify-content: space-between;
-  margin-bottom: var(--space-3);
-}
-
-.currency {
-  font-family: var(--font-mono);
-  font-size: var(--text-label-size);
-  font-weight: var(--text-label-weight);
-  letter-spacing: var(--text-label-tracking);
-  color: var(--color-text-muted);
-  border: 1px solid var(--color-border);
-  border-radius: var(--radius-sm);
-  padding: 2px var(--space-2);
-}
-
-.status {
-  display: inline-flex;
-  align-items: center;
-  gap: 6px;
-  font-family: var(--font-ui);
-  font-size: 10px;
-  font-weight: 600;
-  letter-spacing: 0.06em;
-  color: var(--color-text-faint);
-}
-
-.statusDot {
-  width: 6px;
-  height: 6px;
-  border-radius: 50%;
-  background: var(--color-credit);
-}
-
-.identity {
-  display: flex;
-  flex-direction: column;
-  gap: var(--space-1);
+  gap: var(--space-2);
   padding-bottom: var(--space-3);
   border-bottom: 1px solid var(--color-border);
 }
 
+.currencyBadge {
+  flex-shrink: 0;
+  font-family: var(--font-mono);
+}
+
 .name {
   font-family: var(--font-ui);
-  font-size: var(--text-h2-size);
-  font-weight: var(--text-h2-weight);
-  letter-spacing: var(--text-h2-tracking);
-}
-
-.idRow {
-  display: flex;
-  align-items: center;
-  gap: var(--space-1);
-}
-
-.id {
-  font-size: 11px;
-  color: var(--color-text-faint);
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--color-text);
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
+  flex: 1;
 }
 
-.balanceBlock {
+.idGroup {
   display: flex;
-  flex-direction: column;
-  gap: 2px;
-  padding: var(--space-3) 0;
+  align-items: center;
+  gap: var(--space-1);
+  flex-shrink: 0;
+  opacity: 0.55;
+  transition: opacity 0.12s ease;
 }
 
-.balanceLabel {
-  font-family: var(--font-ui);
+.card:hover .idGroup {
+  opacity: 1;
+}
+
+.id {
   font-size: 10px;
-  font-weight: 600;
-  letter-spacing: 0.06em;
-  text-transform: uppercase;
   color: var(--color-text-faint);
 }
 
-.balance {
+/* Balance is the card's reason to exist - it leads with the number, not a
+   label above it (a stat-card idiom, not a form-field idiom). */
+.balanceHero {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  padding: var(--space-4) 0 var(--space-3);
+}
+
+.balanceValue {
   font-size: var(--text-display-size);
   font-weight: var(--text-display-weight);
   line-height: var(--text-display-lh);
   letter-spacing: var(--text-display-tracking);
+  color: var(--color-text);
   animation: tick 120ms ease-out;
 }
 
@@ -115,10 +83,43 @@
   }
 }
 
-.telemetry {
-  font-size: 12px;
+.balanceCaption {
+  font-size: 11px;
   color: var(--color-text-faint);
+}
+
+.statRow {
+  display: flex;
+  align-items: center;
+  gap: var(--space-4);
   padding-bottom: var(--space-3);
+}
+
+.stat {
+  display: flex;
+  flex-direction: column;
+  gap: 1px;
+}
+
+.statValue {
+  font-family: var(--font-mono);
+  font-size: 13px;
+  font-weight: 500;
+  color: var(--color-text-muted);
+}
+
+.statLabel {
+  font-size: 10px;
+  font-weight: 600;
+  letter-spacing: 0.05em;
+  text-transform: uppercase;
+  color: var(--color-text-faint);
+}
+
+.statDivider {
+  width: 1px;
+  align-self: stretch;
+  background: var(--color-border);
 }
 
 .actions {
@@ -127,7 +128,8 @@
   margin-top: auto;
 }
 
-.actionItem {
+.actionItem,
+.actionItemPrimary {
   flex: 1;
   display: inline-flex;
   align-items: center;
@@ -136,7 +138,6 @@
   font-family: var(--font-ui);
   font-size: 12px;
   font-weight: 600;
-  color: var(--color-text-muted);
   background: transparent;
   border: none;
   border-right: 1px solid var(--color-border);
@@ -147,7 +148,12 @@
     background-color 0.08s ease;
 }
 
-.actionItem:last-child {
+.actionItem {
+  color: var(--color-text-muted);
+}
+
+.actionItem:last-child,
+.actionItemPrimary:last-child {
   border-right: none;
 }
 
@@ -156,8 +162,17 @@
   background: var(--color-surface-sunken);
 }
 
-/* Smooth expand/collapse for the in-place deposit drawer, without measuring
-   scrollHeight in JS - CSS grid-template-rows interpolates fr units. */
+/* The one money-movement action in this row gets the single accent per card,
+   consistent with the "one accent per view" discipline (M8_1_VISUAL_REFERENCES.md #1). */
+.actionItemPrimary {
+  color: var(--color-accent);
+}
+
+.actionItemPrimary:hover {
+  background: var(--color-surface-sunken);
+  color: var(--color-accent-strong);
+}
+
 .drawer {
   display: grid;
   grid-template-rows: 0fr;

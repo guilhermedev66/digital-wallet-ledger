@@ -1,5 +1,6 @@
 import type { ReactNode } from 'react'
 import { Link } from 'react-router-dom'
+import { Badge } from './Badge'
 import { CopyButton } from './CopyButton'
 import type { WalletSummary } from '../hooks/useWallets'
 import { formatAmount } from '../lib/money'
@@ -17,41 +18,48 @@ export function WalletCard({
   fundingSlot?: ReactNode
 }) {
   const name = wallet.displayName ?? 'Untitled wallet'
-  const telemetry =
-    wallet.entryCount === 0
-      ? 'No activity yet'
-      : `${wallet.entryCount} posted ${wallet.entryCount === 1 ? 'entry' : 'entries'}${
-          wallet.lastActivityAtUtc
-            ? ` · Last: ${new Date(wallet.lastActivityAtUtc).toLocaleString()}`
-            : ''
-        }`
+  const shortId = `${wallet.id.slice(0, 8)}…`
+  const hasActivity = wallet.entryCount > 0
 
   return (
     <div className={styles.card}>
-      <div className={styles.statusRow}>
-        <span className={styles.currency}>{wallet.currency}</span>
-        <span className={styles.status}>
-          <span className={styles.statusDot} aria-hidden="true" />
-          NODE ACTIVE
-        </span>
-      </div>
-
-      <div className={styles.identity}>
+      <div className={styles.identityRow}>
+        {/* Spell Badge (docs/design/spell/ADAPTATIONS.md) for currency identity -
+            a routine fact, not a money-direction signal, so it stays "neutral"
+            per Brex's single-accent discipline: the accent is reserved for the
+            Transfer action below, not spent here on a label. */}
+        <Badge variant="neutral" className={styles.currencyBadge}>
+          {wallet.currency}
+        </Badge>
         <span className={styles.name}>{name}</span>
-        <div className={styles.idRow}>
-          <span className={styles.id + ' mono'}>{wallet.id}</span>
+        <div className={styles.idGroup}>
+          <span className={styles.id + ' mono'}>{shortId}</span>
           <CopyButton value={wallet.id} label="wallet ID" />
         </div>
       </div>
 
-      <div className={styles.balanceBlock}>
-        <span className={styles.balanceLabel}>Derived balance</span>
-        <span key={wallet.balanceMinorUnits} className={styles.balance + ' mono'}>
+      <div className={styles.balanceHero}>
+        <span key={wallet.balanceMinorUnits} className={styles.balanceValue + ' mono'}>
           {formatAmount(wallet.balanceMinorUnits, wallet.currency)}
         </span>
+        <span className={styles.balanceCaption}>Derived from posted ledger entries</span>
       </div>
 
-      <span className={styles.telemetry}>{telemetry}</span>
+      <div className={styles.statRow}>
+        <div className={styles.stat}>
+          <span className={styles.statValue}>{wallet.entryCount}</span>
+          <span className={styles.statLabel}>{wallet.entryCount === 1 ? 'Entry' : 'Entries'}</span>
+        </div>
+        <div className={styles.statDivider} aria-hidden="true" />
+        <div className={styles.stat}>
+          <span className={styles.statValue}>
+            {hasActivity && wallet.lastActivityAtUtc
+              ? new Date(wallet.lastActivityAtUtc).toLocaleDateString()
+              : '—'}
+          </span>
+          <span className={styles.statLabel}>Last activity</span>
+        </div>
+      </div>
 
       <div className={styles.actions}>
         {!isFunding && (
@@ -59,8 +67,8 @@ export function WalletCard({
             + Deposit
           </button>
         )}
-        <Link to={`/transfer?wallet=${wallet.id}`} className={styles.actionItem}>
-          → Transfer
+        <Link to={`/transfer?wallet=${wallet.id}`} className={styles.actionItemPrimary}>
+          Transfer →
         </Link>
         <Link to={`/activity?wallet=${wallet.id}`} className={styles.actionItem}>
           Activity

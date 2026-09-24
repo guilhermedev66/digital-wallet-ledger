@@ -1,0 +1,53 @@
+.badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  border-radius: var(--radius-sm);
+  border: 1px solid var(--color-border);
+  font-family: var(--font-ui);
+  font-weight: var(--text-caption-weight);
+  letter-spacing: var(--text-caption-tracking);
+  text-transform: uppercase;
+  white-space: nowrap;
+}
+
+/* size axis - preserved from the original's `size` prop (default/sm) */
+.size-default {
+  height: 20px;
+  padding: 0 var(--space-2);
+  font-size: var(--text-caption-size);
+}
+
+.size-sm {
+  height: 16px;
+  padding: 0 5px;
+  font-size: 9px;
+}
+
+.neutral {
+  color: var(--color-text-faint);
+  background: transparent;
+}
+
+.credit {
+  color: var(--color-credit);
+  background: var(--color-credit-bg);
+  border-color: transparent;
+}
+
+.debit {
+  color: var(--color-text-muted);
+  background: var(--color-surface-sunken);
+}
+
+.attention {
+  color: var(--color-pending);
+  background: var(--color-pending-bg);
+  border-color: transparent;
+}
+
+.danger {
+  color: var(--color-danger);
+  background: var(--color-danger-bg);
+  border-color: transparent;
+}

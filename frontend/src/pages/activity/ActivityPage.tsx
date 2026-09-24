@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useState } from 'react'
 import { useSearchParams } from 'react-router-dom'
 import { apiClient, isApiError, type LedgerEntry, type Transaction } from '../../api'
+import { Badge } from '../../components/Badge'
 import { Button } from '../../components/Button'
 import { CopyButton } from '../../components/CopyButton'
 import { EmptyState } from '../../components/EmptyState'
@@ -197,15 +198,8 @@ export function ActivityPage() {
                           <time className={styles.entryDate + ' mono'} dateTime={tx.postedAtUtc}>
                             {new Date(tx.postedAtUtc).toLocaleString()}
                           </time>
-                          <span
-                            className={
-                              styles.typeBadge +
-                              (tx.type === 'Reversal' ? ' ' + styles.typeBadgeReversal : '')
-                            }
-                          >
-                            {tx.type}
-                          </span>
-                          {isReversed && <span className={styles.reversedTag}>Reversed</span>}
+                          <Badge variant="neutral">{tx.type}</Badge>
+                          {isReversed && <Badge variant="danger">Reversed</Badge>}
                         </div>
                         <div className={styles.entryId}>
                           <span className="mono">{shortId(tx.id)}</span>
@@ -226,9 +220,9 @@ export function ActivityPage() {
 
                       <div className={styles.legs}>
                         <div className={styles.leg + ' ' + styles.legOwn}>
-                          <span className={styles.legDirection}>
+                          <Badge variant="neutral">
                             {ownDirection === 'Debit' ? '↗ Debit' : '↙ Credit'}
-                          </span>
+                          </Badge>
                           <span className={styles.legAccount}>This wallet</span>
                           <span
                             className={
@@ -247,9 +241,9 @@ export function ActivityPage() {
                           <span className={styles.treeBracket} aria-hidden="true">
                             └──
                           </span>
-                          <span className={styles.legDirection}>
+                          <Badge variant="neutral">
                             {counterpartyDirection === 'Debit' ? '↗ Debit' : '↙ Credit'}
-                          </span>
+                          </Badge>
                           <span className={styles.legAccount + ' mono'}>
                             {counterpartyEntry?.accountId ?? '—'}
                           </span>

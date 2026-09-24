@@ -55,6 +55,8 @@ export interface Transaction {
 export interface AuthSession {
   user: User
   token: string
+  // Absent from the mock client, which never expires a session.
+  expiresAtUtc?: string
 }
 
 export interface RegisteredUser {
@@ -113,6 +115,9 @@ export interface ReconciliationReport {
 
 export interface ApiClient {
   setAuthToken(token: string | null): void
+  // Invoked whenever a request fails with 401 on an already-authenticated
+  // client, so the app can drop the stale session and bounce to /login.
+  setUnauthorizedHandler(handler: (() => void) | null): void
 
   register(email: string, password: string): Promise<RegisteredUser>
   login(email: string, password: string): Promise<AuthSession>

@@ -1,6 +1,7 @@
 import { useEffect, useState, type FormEvent } from 'react'
 import { useSearchParams } from 'react-router-dom'
 import { apiClient, isApiError, type Transaction } from '../../api'
+import { Badge } from '../../components/Badge'
 import { Button } from '../../components/Button'
 import { CopyButton } from '../../components/CopyButton'
 import { EmptyState } from '../../components/EmptyState'
@@ -54,6 +55,8 @@ export function TransferPage() {
     fromWallet !== undefined && toWallet !== undefined && fromWallet.currency !== toWallet.currency
   const knownCurrencyMatch =
     fromWallet !== undefined && toWallet !== undefined && fromWallet.currency === toWallet.currency
+  const destinationUnresolved =
+    toWalletId.trim().length > 0 && toWallet === undefined
   const canSubmit =
     Boolean(fromWalletId) &&
     toWalletId.trim().length > 0 &&
@@ -106,6 +109,16 @@ export function TransferPage() {
     setIdempotencyKey(crypto.randomUUID())
   }
 
+  // M8.2: the outlined-secondary rung of the Confirm node's 3-tier action hierarchy
+  // (Brex "Cookie Consent Dialog" pattern, see M8.2_RECIPE.md TRANSFER row). A
+  // non-destructive way to back out of an in-progress entry without touching the
+  // still-valid idempotency key - only the fields the user was actively filling in.
+  function clearForm() {
+    setAmount('')
+    setToWalletId('')
+    setError(null)
+  }
+
   // Debit-normal: money leaving the source posts as a Credit entry, money arriving at the
   // destination posts as a Debit entry (see mockClient.transfer / TransferHandler).
   const sourceCreditEntry = completedTransaction?.entries.find((e) => e.direction === 'Credit')
@@ -116,7 +129,7 @@ export function TransferPage() {
       <h1 className={styles.title}>Transfer</h1>
 
       {walletsStatus === 'error' && (
-        <div style={{ display: 'grid', gap: 'var(--space-3)', maxWidth: 420 }}>
+        <div className={styles.stateBox}>
           <ErrorBanner message={walletsError ?? 'Could not load wallets.'} />
           <Button onClick={refresh}>Retry</Button>
         </div>
@@ -195,58 +208,75 @@ export function TransferPage() {
               </div>
             </div>
           ) : (
-            <div className={styles.pipeline}>
-              <form onSubmit={handleSubmit} noValidate className={styles.pipelineGrid}>
+            <div className={styles.composition}>
+              <form onSubmit={handleSubmit} noValidate className={styles.connector}>
                 {error && (
                   <div className={styles.formError}>
                     <ErrorBanner message={error} />
                   </div>
                 )}
 
-                <div className={styles.pipelineLeft}>
-                {/* Stage 1 — Source Node */}
-                <section className={styles.stage}>
-                  <div className={styles.stageTrack} aria-hidden="true">
-                    <span className={styles.stageBadge}>1</span>
-                    <span className={styles.stageLine} />
+                {/* Node 1 — Source wallet */}
+                <div className={styles.node}>
+                  <div className={styles.nodeTrack} aria-hidden="true">
+                    <span className={styles.nodeDot} />
+                    <span className={styles.nodeLine} />
                   </div>
-                  <div className={styles.stageBody}>
-                    <h2 className={styles.stageLabel}>Source node</h2>
-                    <div className={styles.accountCard}>
-                      <select
-                        id="from-wallet"
-                        aria-label="Source wallet"
-                        className={styles.accountSelect}
-                        value={fromWalletId}
-                        onChange={(e) => setFromWalletId(e.target.value)}
-                        disabled={phase === 'submitting'}
-                      >
-                        {wallets.map((w) => (
-                          <option key={w.id} value={w.id}>
-                            [{w.currency}] {w.displayName ?? 'Untitled wallet'}
-                          </option>
-                        ))}
-                      </select>
-                      {fromWallet && (
-                        <div className={styles.accountCardFooter}>
-                          <span className="mono">{fromWallet.id}</span>
-                          <span className={styles.accountCardBalance + ' amount'}>
-                            Avail: {formatAmount(fromWallet.balanceMinorUnits, fromWallet.currency)}
-                          </span>
-                        </div>
-                      )}
-                    </div>
-                  </div>
-                </section>
+                  <div className={styles.nodeBody}>
+                    <h2 className={styles.nodeLabel}>From</h2>
 
-                {/* Stage 2 — Amount Conduit */}
-                <section className={styles.stage}>
-                  <div className={styles.stageTrack} aria-hidden="true">
-                    <span className={styles.stageBadge}>2</span>
-                    <span className={styles.stageLine} />
+                    {wallets.length > 1 ? (
+                      <div className={styles.pillGroup} role="radiogroup" aria-label="Source wallet">
+                        {wallets.map((w) => (
+                          <button
+                            key={w.id}
+                            type="button"
+                            role="radio"
+                            aria-checked={w.id === fromWalletId}
+                            className={[styles.pill, w.id === fromWalletId ? styles.pillActive : '']
+                              .filter(Boolean)
+                              .join(' ')}
+                            onClick={() => setFromWalletId(w.id)}
+                            disabled={phase === 'submitting'}
+                          >
+                            <span className={styles.pillCurrency}>{w.currency}</span>
+                            {w.displayName ?? 'Untitled wallet'}
+                          </button>
+                        ))}
+                      </div>
+                    ) : (
+                      fromWallet && (
+                        <div className={styles.walletChip}>
+                          <span className={styles.chipCurrency}>{fromWallet.currency}</span>
+                          {fromWallet.displayName ?? 'Untitled wallet'}
+                        </div>
+                      )
+                    )}
+
+                    {fromWallet && (
+                      <div className={styles.nodeMeta}>
+                        <span className="mono">{fromWallet.id}</span>
+                        <span className={styles.nodeBalance + ' amount'}>
+                          Avail {formatAmount(fromWallet.balanceMinorUnits, fromWallet.currency)}
+                        </span>
+                      </div>
+                    )}
                   </div>
-                  <div className={styles.stageBody}>
-                    <h2 className={styles.stageLabel}>Amount conduit</h2>
+                </div>
+
+                {/* Node 2 — Amount (the focal point of the flow) */}
+                <div className={styles.node}>
+                  <div className={styles.nodeTrack} aria-hidden="true">
+                    <span className={[styles.nodeDot, styles.nodeDotAccent].join(' ')} />
+                    <span className={styles.nodeLine} />
+                  </div>
+                  <div className={styles.nodeBody}>
+                    <h2 className={styles.nodeLabel}>Amount</h2>
+                    {/* Brex "Email Capture Input" pairing (M8.2_RECIPE.md TRANSFER row): the
+                        field sits flush against its action with a 4-8px gap. The quick-fraction
+                        chips now live in the amount field's own suffix slot instead of a second
+                        row below a wrapping bordered panel - one hairline border (the input
+                        well's) instead of a panel-in-panel double border. */}
                     <LabelInput
                       label={`Amount${fromWallet ? ` (${fromWallet.currency})` : ''}`}
                       placeholder="0.00"
@@ -257,57 +287,67 @@ export function TransferPage() {
                       onChange={(e) => setAmount(e.target.value)}
                       disabled={phase === 'submitting'}
                       prefixSlot={fromWallet?.currency}
+                      suffixSlot={
+                        <div className={styles.quickChips}>
+                          {QUICK_FRACTIONS.map((q) => (
+                            <button
+                              key={q.label}
+                              type="button"
+                              className={styles.quickChip}
+                              onClick={() => applyQuickFraction(q.fraction)}
+                              disabled={phase === 'submitting' || !fromWallet}
+                            >
+                              {q.label}
+                            </button>
+                          ))}
+                        </div>
+                      }
                       error={
                         exceedsBalance
                           ? `Exceeds available balance (${formatAmount(fromWallet!.balanceMinorUnits, fromWallet!.currency)} max).`
                           : undefined
                       }
                     />
-                    <div className={styles.quickChips}>
-                      {QUICK_FRACTIONS.map((q) => (
-                        <button
-                          key={q.label}
-                          type="button"
-                          className={styles.quickChip}
-                          onClick={() => applyQuickFraction(q.fraction)}
-                          disabled={phase === 'submitting' || !fromWallet}
-                        >
-                          {q.label}
-                        </button>
-                      ))}
-                    </div>
                     {remainingAfter !== null && fromWallet && !exceedsBalance && (
-                      <p className={styles.stageHint}>
+                      <p className={styles.nodeHint}>
                         Remaining balance after transfer:{' '}
                         <span className="mono">{formatAmount(remainingAfter, fromWallet.currency)}</span>
                       </p>
                     )}
                   </div>
-                </section>
+                </div>
 
-                {/* Stage 3 — Destination Node */}
-                <section className={styles.stage}>
-                  <div className={styles.stageTrack} aria-hidden="true">
-                    <span className={styles.stageBadge}>3</span>
-                    <span className={styles.stageLine} />
+                {/* Node 3 — Destination wallet */}
+                <div className={styles.node}>
+                  <div className={styles.nodeTrack} aria-hidden="true">
+                    <span className={styles.nodeDot} />
+                    <span className={styles.nodeLine} />
                   </div>
-                  <div className={styles.stageBody}>
-                    <h2 className={styles.stageLabel}>Destination node</h2>
+                  <div className={styles.nodeBody}>
+                    <h2 className={styles.nodeLabel}>To</h2>
                     <LabelInput
-                      label="Target wallet ID"
+                      label="Destination wallet ID"
                       placeholder="wallet_..."
                       required
                       mono
                       value={toWalletId}
                       onChange={(e) => setToWalletId(e.target.value)}
                       disabled={phase === 'submitting'}
-                      suffixSlot={
-                        knownCurrencyMatch ? (
-                          <span className={styles.matchPill}>✓ {fromWallet?.currency} match</span>
-                        ) : undefined
-                      }
                     />
-                    <p className={styles.stageHint}>
+                    {toWalletId.trim().length > 0 && (
+                      <div className={styles.destPreview}>
+                        {knownCurrencyMatch && (
+                          <Badge variant="credit">✓ {toWallet?.currency} match</Badge>
+                        )}
+                        {knownCurrencyMismatch && (
+                          <Badge variant="danger">
+                            {toWallet?.currency} ≠ {fromWallet?.currency}
+                          </Badge>
+                        )}
+                        {destinationUnresolved && <Badge variant="neutral">External wallet</Badge>}
+                      </div>
+                    )}
+                    <p className={styles.nodeHint}>
                       Your own wallet or another account&apos;s — must be the same currency as the
                       source. Cross-currency transfers are rejected by ledger rules.
                     </p>
@@ -317,21 +357,33 @@ export function TransferPage() {
                       />
                     )}
                   </div>
-                </section>
                 </div>
 
-                <div className={styles.pipelineRight}>
-                {/* Stage 4 — Double-Entry Manifest */}
-                <section className={styles.stage}>
-                  <div className={styles.stageTrack} aria-hidden="true">
-                    <span className={styles.stageBadge}>4</span>
-                    <span className={styles.stageLine} />
+                {/* Node 4 — Review */}
+                <div className={styles.node}>
+                  <div className={styles.nodeTrack} aria-hidden="true">
+                    <span className={styles.nodeDot} />
+                    <span className={styles.nodeLine} />
                   </div>
-                  <div className={styles.stageBody} aria-live="polite">
-                    <h2 className={styles.stageLabel}>Double-entry manifest</h2>
+                  <div className={styles.nodeBody} aria-live="polite">
+                    <h2 className={styles.nodeLabel}>Review</h2>
                     {hasValidAmount && fromWalletId && toWalletId.trim() && !knownCurrencyMismatch ? (
-                      <div className={styles.manifest}>
-                        <p className={styles.stageHint}>
+                      <div className={styles.review}>
+                        <div className={styles.reviewSummary}>
+                          <span className={styles.reviewChip}>
+                            {fromWallet?.currency} · {fromWallet?.displayName ?? fromWalletId}
+                          </span>
+                          <span className={styles.reviewArrow} aria-hidden="true">
+                            →
+                          </span>
+                          <span className={styles.reviewChip}>
+                            {toWallet ? `${toWallet.currency} · ${toWallet.displayName ?? toWallet.id}` : 'External wallet'}
+                          </span>
+                        </div>
+                        <p className={styles.reviewAmount + ' amount'}>
+                          {formatAmount(minorUnits!, fromWallet?.currency ?? 'USD')}
+                        </p>
+                        <p className={styles.nodeHint}>
                           Exactly these two ledger legs will be posted atomically:
                         </p>
                         <table className={tableStyles.table}>
@@ -369,42 +421,69 @@ export function TransferPage() {
                         </div>
                       </div>
                     ) : (
-                      <p className={styles.stageHint}>
+                      <p className={styles.nodeHint}>
                         Fill in the destination and amount to see the exact entries before you
                         confirm.
                       </p>
                     )}
                   </div>
-                </section>
+                </div>
 
-                {/* Stage 5 — Atomic Commit */}
-                <section className={styles.commitStage}>
-                  <FlowButton
-                    type="submit"
-                    isLoading={phase === 'submitting'}
-                    loadingLabel="Posting atomic transaction…"
-                    disabled={!canSubmit}
-                  >
-                    Post transaction to ledger →
-                  </FlowButton>
-                  <div className={styles.auditStrip}>
-                    <span className={styles.auditLabel}>Idempotency</span>
-                    <span className="mono">{idempotencyKey}</span>
-                    <CopyButton value={idempotencyKey} label="idempotency key" />
-                    <button
-                      type="button"
-                      className={styles.regenerate}
-                      onClick={() => setIdempotencyKey(crypto.randomUUID())}
-                      disabled={phase === 'submitting'}
-                    >
-                      ↻ Regenerate
-                    </button>
+                {/* Node 5 — Confirm */}
+                <div className={styles.node}>
+                  <div className={styles.nodeTrack} aria-hidden="true">
+                    <span className={[styles.nodeDot, styles.nodeDotAccent].join(' ')} />
                   </div>
-                  <p className={styles.auditNote}>
-                    Resubmission protection: an identical key replays the posted result instead of
-                    double-posting.
-                  </p>
-                </section>
+                  <div className={styles.nodeBody}>
+                    <h2 className={styles.nodeLabel}>Confirm</h2>
+                    {/* Brex "Cookie Consent Dialog" 3-button hierarchy (M8.2_RECIPE.md TRANSFER
+                        row): filled primary / outlined secondary / text-link tertiary. Primary
+                        is the FlowButton (Spell Pop Button press mechanic, unchanged). Outlined
+                        secondary is "Clear form" - a real, non-destructive way to back out that
+                        previously had no affordance beyond deleting each field by hand. The
+                        text-link tertiary is the existing Regenerate action below, kept next to
+                        the idempotency key it regenerates rather than pulled up into this row,
+                        since its meaning depends on that adjacency. */}
+                    <div className={styles.confirmActions}>
+                      <FlowButton
+                        type="submit"
+                        className={styles.confirmButton}
+                        isLoading={phase === 'submitting'}
+                        loadingLabel="Posting atomic transaction…"
+                        disabled={!canSubmit}
+                      >
+                        Post transaction to ledger →
+                      </FlowButton>
+                      {(amount.length > 0 || toWalletId.trim().length > 0) && (
+                        <Button
+                          type="button"
+                          variant="secondary"
+                          className={styles.clearButton}
+                          onClick={clearForm}
+                          disabled={phase === 'submitting'}
+                        >
+                          Clear form
+                        </Button>
+                      )}
+                    </div>
+                    <div className={styles.idCaption}>
+                      <span className={styles.idLabel}>Idempotency</span>
+                      <span className="mono">{idempotencyKey}</span>
+                      <CopyButton value={idempotencyKey} label="idempotency key" />
+                      <button
+                        type="button"
+                        className={styles.regenerate}
+                        onClick={() => setIdempotencyKey(crypto.randomUUID())}
+                        disabled={phase === 'submitting'}
+                      >
+                        ↻ Regenerate
+                      </button>
+                    </div>
+                    <p className={styles.auditNote}>
+                      Resubmission protection: an identical key replays the posted result instead of
+                      double-posting.
+                    </p>
+                  </div>
                 </div>
               </form>
             </div>

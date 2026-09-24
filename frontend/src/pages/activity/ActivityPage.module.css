@@ -101,34 +101,6 @@
   color: var(--color-text-muted);
 }
 
-.typeBadge {
-  display: inline-flex;
-  align-items: center;
-  height: 18px;
-  padding: 0 var(--space-2);
-  font-size: 10px;
-  font-weight: 600;
-  letter-spacing: 0.04em;
-  text-transform: uppercase;
-  color: var(--color-text-muted);
-  background: var(--color-surface-elevated);
-  border: 1px solid var(--color-border);
-  border-radius: var(--radius-sm);
-}
-
-.typeBadgeReversal {
-  color: var(--color-pending);
-  border-color: var(--color-pending);
-}
-
-.reversedTag {
-  font-size: 10px;
-  font-weight: 600;
-  letter-spacing: 0.04em;
-  text-transform: uppercase;
-  color: var(--color-text-faint);
-}
-
 .entryId {
   display: flex;
   align-items: center;
@@ -154,21 +126,24 @@
 
 .leg {
   display: grid;
-  grid-template-columns: 90px 1fr auto;
+  grid-template-columns: 96px 1fr auto;
   align-items: center;
   gap: var(--space-3);
   padding: var(--space-2) var(--space-3);
-  border-radius: var(--radius-sm);
 }
 
+/* Own-leg primacy reads through weight alone, no filled box - hairline
+   separation from the counterparty leg below carries the rest (Brex's
+   Article/Resource Card row rhythm: "hairline separation, no nested boxes"). */
 .legOwn {
-  background: var(--color-surface-elevated);
   font-weight: 600;
 }
 
 .legCounterparty {
-  grid-template-columns: 24px 90px 1fr auto;
+  grid-template-columns: 24px 96px 1fr auto;
   padding-left: var(--space-4);
+  padding-top: var(--space-3);
+  border-top: 1px solid var(--color-border);
   color: var(--color-text-muted);
   font-weight: 400;
 }
@@ -176,11 +151,6 @@
 .treeBracket {
   font-family: var(--font-mono);
   color: var(--color-text-faint);
-}
-
-.legDirection {
-  font-size: 12px;
-  color: var(--color-text-muted);
 }
 
 .legAccount {

@@ -201,6 +201,78 @@ Status legend: `[ ]` not started, `[~]` in progress, `[x]` done.
 - [ ] Deployment - still deliberately not done; local dev server left running on
   `localhost:5173` for inspection before any GitHub/Neon/Render/Vercel decision.
 
+## M8.2 — Source-driven frontend rebuild (post-M8.1 evidence audit)
+- [x] Evidence audit (read-only, before any edit): confirmed no real Refero DESIGN.md,
+  no real Spell UI source, and no real Inspora asset had ever been incorporated in M8/M8.1 -
+  all "Spell-pattern" components (`Kbd`, `CopyButton`, `FlowButton`, `LabelInput`,
+  `BarsSpinner`) were hand-rolled reimplementations, never installed. `package.json`/
+  `package-lock.json` had zero diff across both milestones. Full findings reported inline
+  in-session (not a separate file) before M8.2 scope was defined.
+- [x] Real design source retrieved and saved to disk (not AI summaries):
+  `docs/design/refero/brex-design.md` (Brex's actual DESIGN.md, verbatim, from Refero
+  Styles - single coherent style, not a 5-source mix); `docs/design/spell/*.json` (4 real
+  Spell UI registry artifacts - `badge`, `copy-button`, `pop-button`, `kbd` - fetched
+  byte-for-byte from `spell.sh/r/<name>.json`, the same endpoint their own
+  `shadcn@latest add` installer uses); `docs/design/inspora-references.md` (3 composition
+  references, explicitly reference-only, no assets incorporated).
+- [x] Spell UI integration decision: every real Spell component is a Tailwind+Radix+CVA
+  shadcn registry item; this project has none of those. Rather than bootstrapping a second
+  styling system project-wide just to run 4 components verbatim, chose to adapt the real
+  source's preserved logic/API (variant/size axes, the icon-crossfade mechanic, the
+  border-thins-plus-scaleY press mechanic, the key-symbol lookup table) into this project's
+  existing CSS Modules + `tokens.css`, documented per-component (official URL, preserved
+  logic, changes made, final files) in `docs/design/spell/ADAPTATIONS.md`. New `PopButton`
+  component; `Badge`/`CopyButton`/`Kbd` rewritten in place on the real source.
+- [x] `M8.2_RECIPE.md`: Brex adopted as *structural/compositional* foundation (single-accent
+  discipline, hairline-border-only elevation, flat surfaces, per-screen component patterns)
+  - explicitly not a literal reskin, since this project's already-approved near-black/
+  graphite/amber "Ledger Terminal" palette, IBM Plex typography, and sharp 1-2px radius
+  system are kept per the milestone's own "color/skin is secondary" instruction.
+- [x] Structural rebuild across Dashboard+WalletCard, Transfer, Activity, Reconciliation:
+  banded "Portfolio snapshot" stat panel and borderless currency-group cards on Dashboard
+  (Brex "Customer Logo Grid" / "Feature Category Card"); Email-Capture-Input field+button
+  pairing for the deposit drawer and the Transfer amount+quick-chip row; a 3-tier action
+  hierarchy (filled primary / outlined "Clear form" / text-link regenerate) on Transfer's
+  confirm node, modeled on Brex's Cookie Consent Dialog button row; Reconciliation collapsed
+  from a banner-plus-disconnected-stat-strip into a single instrument-panel block (one
+  dominant display-size status read, everything else demoted to a compact secondary meta
+  row, methodology text moved to directly caption the table it describes); Activity's own
+  already-sound double-entry journal structure was left as-is after honest re-evaluation,
+  with two targeted fixes (a nested filled box removed per Brex's "no nested boxes," and
+  type/direction badges recolored to neutral per Brex's single-accent Do/Don't - only the
+  genuinely-reversed-transaction badge keeps an accent color now).
+- [x] Antigravity visual QA (this session, browser-driven against the real localhost): all
+  4 screens x 5 breakpoints (320/375/768/1024/1440) x 2 themes = 40 combinations, zero
+  console errors, zero horizontal page overflow. One IMPORTANT found and fixed: the
+  Transfer source-wallet pill selector clipped its second pill's text mid-word at exactly
+  320px width with no visual affordance that it was still scrollable; fixed with a
+  right-edge `mask-image` fade (a no-op when the row doesn't overflow) instead of a hard
+  clip. Re-verified 0 overflow, fade renders correctly. All 4 Spell adaptations verified
+  live: Pop Button's border-width (4px rest -> 2px+scaleY on press) confirmed via
+  `getComputedStyle` on both the Dashboard empty-state CTA and the Transfer confirm button;
+  Kbd's keycap rendering and symbol mapping confirmed in the command palette; Copy Button's
+  icon crossfade confirmed rendering without error.
+- [x] Codex QA functional regression: full click-through E2E against the real backend (not
+  mocked) - login, second-wallet creation, a same-currency transfer, activity showing the
+  posted transfer, a reversal, and reconciliation confirming `Balanced`/zero-drift
+  afterward - zero console/network errors throughout. Backend: `dotnet build` clean (0
+  warnings), full suite re-run (54 Domain + 90 Application + 58 IntegrationTests via real
+  Testcontainers Postgres) all green - confirms the frontend-only diff caused zero backend
+  regression.
+- [x] Regression gate: frontend `npm run typecheck`/`lint`/`build` all clean after every
+  round of changes (only pre-existing `set-state-in-effect`/`only-export-components`
+  warnings, none new).
+- [x] Security sanity check (frontend-presentation-only diff, not a full SECURITY GATE):
+  no `dangerouslySetInnerHTML`/`eval`, no hardcoded secrets, no new runtime network calls
+  (the inlined Lucide icon SVGs and Spell source-URL comments are static, not `fetch`
+  targets), `.env`/`.env.local` untouched and still gitignored.
+- [x] Restored a screen-reader-only `visually-hidden` balanced/drift announcement span in
+  `ReconciliationPage.tsx`'s drift table cell that an earlier pass had accidentally dropped
+  - caught during this session's evidence-audit review, fixed before the structural rebuild
+  began so the rebuild didn't have to carry the regression forward.
+- [ ] Deployment - still deliberately not done; local dev server left running for the
+  product owner's own visual inspection before any next-step decision.
+
 ## Known environment blockers (see MEMORY.md for detail)
 - ~~Docker CLI not available locally~~ — resolved 2026-09-23: Docker Desktop's WSL
   integration works via `docker.exe` from this WSL distro (Docker Desktop just

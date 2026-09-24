@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useState } from 'react'
 import { useSearchParams } from 'react-router-dom'
 import { apiClient, isApiError, type ReconciliationReport } from '../../api'
+import { Badge } from '../../components/Badge'
 import { BarsSpinner } from '../../components/BarsSpinner'
 import { Button } from '../../components/Button'
 import { EmptyState } from '../../components/EmptyState'
@@ -43,6 +44,11 @@ export function ReconciliationPage() {
   useEffect(() => {
     if (selectedWalletId) load(selectedWalletId)
   }, [selectedWalletId, load])
+
+  const totalAccounts = report?.accounts.length ?? 0
+  const balancedAccounts = report?.accounts.filter((a) => a.isBalanced).length ?? 0
+  const unbalancedCount = report?.unbalancedTransactions.length ?? 0
+  const unbalancedWord = unbalancedCount === 1 ? 'transaction' : 'transactions'
 
   return (
     <div>
@@ -99,55 +105,60 @@ export function ReconciliationPage() {
 
           {status === 'success' && report && (
             <div className={styles.content}>
+              {/* "Silence = good, accent = look here" (M8_1_VISUAL_REFERENCES.md #3, Brex):
+                  a clean ledger gets a neutral, almost quiet readout - the accent color is
+                  held in reserve entirely for the moment something actually needs attention,
+                  instead of spending it on a celebratory green every render.
+
+                  Instrument-panel read (M8.2_RECIPE.md, RECONCILIATION row): one dominant
+                  primary status - the display-size "Balanced"/"Drift detected" line - with
+                  every other figure (accounts balanced, unbalanced transactions, generated-at)
+                  demoted to a single compact secondary readout row underneath it, instead of
+                  a second display-size stat strip competing for the same attention. */}
               <div className={report.isClean ? styles.healthBanner : styles.healthBannerDrift}>
-                <span className={styles.healthIcon} aria-hidden="true">
-                  {report.isClean ? '✓' : '⚠'}
-                </span>
-                <div className={styles.healthCopy}>
-                  <span className={styles.healthHeadline}>
-                    {report.isClean
-                      ? 'System balanced: zero drift verified'
-                      : `Drift detected: ${report.unbalancedTransactions.length} unbalanced ${report.unbalancedTransactions.length === 1 ? 'transaction' : 'transactions'}`}
+                <div className={styles.healthPrimary}>
+                  <span className={styles.healthStatus}>
+                    {report.isClean ? 'Balanced' : 'Drift detected'}
                   </span>
-                  <span className={styles.healthSubline}>
+                  <Badge variant={report.isClean ? 'neutral' : 'danger'}>
                     {report.isClean
-                      ? 'Every account balance recomputed from raw journal entries matches the runtime projected balance. Zero discrepancies found.'
-                      : 'One or more transactions have unequal debits and credits, or a projected balance has drifted from its recomputed value. See the tables below.'}
+                      ? '0 discrepancies'
+                      : `${unbalancedCount} unbalanced ${unbalancedWord}`}
+                  </Badge>
+                </div>
+                <span className={styles.healthSubline}>
+                  {report.isClean
+                    ? 'Every account balance recomputed from raw journal entries matches the runtime projected balance.'
+                    : 'One or more transactions have unequal debits and credits, or a projected balance has drifted from its recomputed value. See below.'}
+                </span>
+                <div className={styles.healthMeta}>
+                  <span className={styles.metaStat}>
+                    <strong className="mono">
+                      {balancedAccounts}/{totalAccounts}
+                    </strong>{' '}
+                    accounts balanced
+                  </span>
+                  <span className={styles.metaDivider} aria-hidden="true">
+                    ·
+                  </span>
+                  <span className={styles.metaStat + (unbalancedCount > 0 ? ' ' + styles.drift : '')}>
+                    <strong className="mono">{unbalancedCount}</strong> unbalanced {unbalancedWord}
+                  </span>
+                  <span className={styles.generatedAt + ' mono'}>
+                    Generated {new Date(report.generatedAtUtc).toLocaleString()}
                   </span>
                 </div>
-                <span className={styles.generatedAt + ' mono'}>
-                  Generated {new Date(report.generatedAtUtc).toLocaleString()}
-                </span>
               </div>
 
-              <div className={styles.summaryStrip}>
-                <div className={styles.summaryStat}>
-                  <span className={styles.summaryValue + ' mono'}>
-                    {report.accounts.filter((a) => a.isBalanced).length}/{report.accounts.length}
-                  </span>
-                  <span className={styles.summaryLabel}>Accounts balanced</span>
-                </div>
-                <div className={styles.summaryStat}>
-                  <span
-                    className={
-                      styles.summaryValue +
-                      ' mono ' +
-                      (report.unbalancedTransactions.length > 0 ? styles.drift : '')
-                    }
-                  >
-                    {report.unbalancedTransactions.length}
-                  </span>
-                  <span className={styles.summaryLabel}>Unbalanced transactions</span>
-                </div>
-                <p className={styles.summaryExplainer}>
+              <div className={styles.matrixHeader}>
+                <h2 className={styles.matrixTitle}>Forensic comparison matrix</h2>
+                <p className={styles.matrixExplainer}>
                   Each account's recomputed balance is derived independently from raw ledger
                   entries — the same computation the rest of the app uses, run again from
-                  scratch — so this is proof of consistency, not a second opinion trusting the
-                  first.
+                  scratch — so this table is proof of consistency, not a second opinion trusting
+                  the first.
                 </p>
               </div>
-
-              <h2 className={styles.matrixTitle}>Forensic comparison matrix</h2>
               <table className={tableStyles.table}>
                 <thead>
                   <tr>
@@ -172,16 +183,11 @@ export function ReconciliationPage() {
                       <td data-label="Recomputed balance" className={tableStyles.numeric + ' mono'}>
                         {formatAmount(account.recomputedBalanceMinorUnits, account.currency)}
                       </td>
-                      <td
-                        data-label="Drift"
-                        className={
-                          tableStyles.numeric +
-                          ' mono ' +
-                          (account.isBalanced ? styles.driftOk : styles.drift)
-                        }
-                      >
-                        {!account.isBalanced && <span aria-hidden="true">⚠ </span>}
-                        {formatAmount(account.driftMinorUnits, account.currency)}
+                      <td data-label="Drift" className={tableStyles.numeric + ' ' + styles.driftCell}>
+                        <span className="mono">
+                          {formatAmount(account.driftMinorUnits, account.currency)}
+                        </span>
+                        {!account.isBalanced && <Badge variant="danger">Drift</Badge>}
                         <span className="visually-hidden">
                           {account.isBalanced ? ' (balanced)' : ' (drift detected)'}
                         </span>
