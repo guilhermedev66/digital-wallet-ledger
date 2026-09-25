@@ -9,6 +9,14 @@ on:
 jobs:
   backend:
     runs-on: ubuntu-latest
+    env:
+      # CI-only throwaway values, not used anywhere real - locally this comes from
+      # `dotnet user-secrets` (see MEMORY.md), which obviously isn't available on a
+      # fresh runner. No production deployment exists yet; when one does, it must get
+      # its own real signing key from that environment's secret store, never this one.
+      Jwt__SigningKey: "0f7158d3b3d1fd20813a5840faaf1ed5d5d3ff3b7e7a6b4cf8c7fa08e3be3082"
+      Jwt__Issuer: "walletledger-ci"
+      Jwt__Audience: "walletledger-ci-client"
     steps:
       - uses: actions/checkout@v4
 
