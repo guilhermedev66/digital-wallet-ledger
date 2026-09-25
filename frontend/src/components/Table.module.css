@@ -70,6 +70,11 @@
     text-transform: uppercase;
     letter-spacing: 0.04em;
     color: var(--color-text-muted);
+    /* A row's own label (e.g. "ACCOUNT") is always a short, controlled word —
+       it should never itself wrap; only the value side (which may be a long
+       mono ID) is allowed to break via the sibling `overflow-wrap: anywhere`. */
+    white-space: nowrap;
+    flex-shrink: 0;
   }
   .numeric {
     text-align: right;

@@ -152,6 +152,10 @@
 
 .accountType {
   font-weight: 600;
+  /* A real, short English word ("UserWallet"), not an ID — never break it
+     mid-word; the long UUID in .accountId below is the one that's allowed to
+     wrap (see Table.module.css's `overflow-wrap: anywhere`). */
+  white-space: nowrap;
 }
 
 .accountId {

@@ -273,6 +273,77 @@ Status legend: `[ ]` not started, `[~]` in progress, `[x]` done.
 - [ ] Deployment - still deliberately not done; local dev server left running for the
   product owner's own visual inspection before any next-step decision.
 
+## M8.3 — Overnight autonomous QA pass (unattended run while the product owner slept)
+- [x] Reconstructed real state first (git status/log/diff, MEMORY.md, ROADMAP.md, M8.2
+  QA docs) before touching anything: working tree was clean, HEAD already at M8.2's
+  commit, no remote configured yet. Confirmed M8.2 was genuinely complete, not repeated.
+- [x] Verified the M8.2 QA report's tooling claims before trusting or repeating them,
+  since this repo's own M8.2 evidence audit had previously caught an *earlier* session
+  fabricating design-sourcing claims: confirmed "Antigravity" = the real Maestri Canvas
+  Portal browser tool (not fabricated - its own report byline says so), and confirmed
+  Codex CLI (`codex-cli 0.156.1`) is a real, installed, trusted-for-this-project binary.
+  Playwright itself is not a project dependency but its browser binaries were already
+  cached on the machine (`~/.cache/ms-playwright`), so a real headless visual QA pass was
+  possible via a one-off `npm install playwright --no-save` in a scratch directory (never
+  added to the project's own `package.json`/lock file).
+- [x] Re-ran the full existing gate independently rather than trusting old numbers:
+  backend `dotnet build`/`dotnet test` (54 Domain + 90 Application + 58 Integration, all
+  green, real Postgres via Testcontainers) and frontend `typecheck`/`lint`/`build`, all
+  clean, before making any change.
+- [x] Real visual QA: seeded a fresh test user with 4 wallets across 3 currencies (USD
+  x2, EUR, GBP) via the live API (funding, a same-currency transfer, and a reversal - not
+  mock data), then used a real headless Playwright script against the live
+  `localhost:5173` dev server to capture all 40 combinations (4 pages x 5 breakpoints x
+  2 themes) with an automated `document.documentElement.scrollWidth` check per
+  screenshot. Result: 0 console errors, 0 horizontal overflow, confirmed
+  programmatically, not just by eye.
+- [x] Two real, verified IMPORTANT findings from actually looking at the screenshots
+  (not from re-reading old docs), both fixed and re-verified after a dev-server restart
+  (Vite doesn't always serve fresh CSS to a new Playwright context otherwise - see
+  MEMORY.md's existing note on this):
+  1. **Transfer's composition column was left-pinned, not centered** - at the shell's
+     full 1440px width this left roughly two-thirds of the viewport as dead black space,
+     undermining the "one of the best screens in the project" bar for a screen that is
+     otherwise sound. Fixed with `margin: 0 auto` on `.composition`/`.receiptPanel`/
+     `.stateBox` in `TransferPage.module.css` - kept the existing single-column recipe
+     (M8.2 had deliberately rejected a competing two-pane workbench; this doesn't
+     reopen that decision, it just balances the column that decision produced).
+  2. **Mobile responsive-table label/value word-wrap bug**: at <=640px, a table row's
+     `data-label` pseudo-element (e.g. "ACCOUNT") and a real English word value (e.g.
+     "UserWallet", Reconciliation's account-type text) could both wrap mid-word inside
+     the shared flex row, because the row's `overflow-wrap: anywhere` safety net (added
+     for long mono IDs) was inherited by short readable words too. Fixed by giving the
+     label (`Table.module.css`) and `.accountType` (`ReconciliationPage.module.css`)
+     `white-space: nowrap` - the long UUID alongside them still wraps freely, which is
+     the safety net's actual intended target.
+- [x] Independent functional QA against the real backend (not mocks), covering the
+  same checklist the product owner specified: registration, duplicate-email (409),
+  wrong-password and unknown-email login (both a generic 401, non-enumerable),
+  ownership isolation across two real users (404 on GET/fund/transfer-out/reverse
+  targeting another user's wallet - never a 403, matching this repo's documented
+  convention), cross-currency transfer rejection (400), idempotency replay (identical
+  key+body returns the *same* transaction id, not a duplicate; identical key with a
+  *different* body is rejected 409), insufficient-funds rejection (422), and
+  reconciliation staying `isClean`/`isBalanced` with zero drift throughout. All passed
+  with concrete evidence (exact HTTP status + body), zero regressions found.
+- [x] Codex QA: launched non-interactively (`codex exec -s read-only`) with the same
+  checklist above handed to it as a genuinely independent second reviewer. It hit its
+  account usage limit before returning a result ("You've hit your usage limit... try
+  again at Sep 28th, 2026"). Per the product owner's own standing instruction for this
+  exact scenario, Claude took over the functional QA pass directly instead of waiting -
+  see the independent-QA bullet above, which *is* that fallback pass, not a second
+  redundant one.
+- [x] Full regression gate re-run one final time after the two fixes: backend 54+90+58
+  tests green again, frontend `typecheck`/`lint`/`build` clean (only the same
+  pre-existing `set-state-in-effect`/`only-export-components` warnings, no new ones).
+- [x] Light security sanity check on tonight's diff (CSS-only, no `dangerouslySetInnerHTML`
+  /`eval`/hardcoded secrets); separately, since tonight was also the *first-ever* push of
+  this repo's full history to a new public GitHub remote, ran a full `git log --all -p`
+  secret-scan grep pass before pushing (see MEMORY.md) - clean, consistent with the M7
+  security gate's own prior full-history scan.
+- [ ] Deployment - still not done; out of scope for tonight per explicit instruction
+  (GitHub push authorized, Neon/Render/Vercel production deployment explicitly not).
+
 ## Known environment blockers (see MEMORY.md for detail)
 - ~~Docker CLI not available locally~~ — resolved 2026-09-23: Docker Desktop's WSL
   integration works via `docker.exe` from this WSL distro (Docker Desktop just
