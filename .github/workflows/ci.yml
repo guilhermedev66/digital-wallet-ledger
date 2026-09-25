@@ -10,13 +10,21 @@ jobs:
   backend:
     runs-on: ubuntu-latest
     env:
-      # CI-only throwaway values, not used anywhere real - locally this comes from
-      # `dotnet user-secrets` (see MEMORY.md), which obviously isn't available on a
-      # fresh runner. No production deployment exists yet; when one does, it must get
-      # its own real signing key from that environment's secret store, never this one.
-      Jwt__SigningKey: "0f7158d3b3d1fd20813a5840faaf1ed5d5d3ff3b7e7a6b4cf8c7fa08e3be3082"
+      # CI-only throwaway values - locally these come from `dotnet user-secrets` (see
+      # MEMORY.md), which obviously isn't available on a fresh runner. No production
+      # deployment exists yet; when one does, it must get its own real signing key from
+      # that environment's secret store, never this one. Kept as a repo secret (not a
+      # literal here) purely to keep it out of gitleaks' way, not because it's sensitive.
+      Jwt__SigningKey: ${{ secrets.CI_JWT_SIGNING_KEY }}
       Jwt__Issuer: "walletledger-ci"
       Jwt__Audience: "walletledger-ci-client"
+      # WalletLedgerApiFactory (tests/WalletLedger.IntegrationTests) always overrides this
+      # with a real Testcontainers Postgres connection string before any test touches the
+      # database (AddDbContext's later call wins) - but Program.cs's own top-level
+      # AddDbContext call still runs first and throws on a null connection string before
+      # the test's override ever gets a chance to apply. This value is never actually
+      # connected to; it only has to be non-null and syntactically valid.
+      ConnectionStrings__Default: "Host=localhost;Port=5432;Database=ci_unused;Username=ci_unused;Password=ci_unused"
     steps:
       - uses: actions/checkout@v4
 
