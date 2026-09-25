@@ -341,6 +341,26 @@ Status legend: `[ ]` not started, `[~]` in progress, `[x]` done.
   this repo's full history to a new public GitHub remote, ran a full `git log --all -p`
   secret-scan grep pass before pushing (see MEMORY.md) - clean, consistent with the M7
   security gate's own prior full-history scan.
+- [x] Created the public `digital-wallet-ledger` GitHub repo (this was the repo's
+  first-ever remote/push) and pushed `main`. GitHub Actions CI then ran for the very
+  first time in this project's life and immediately surfaced two real, previously-
+  invisible gaps - both only ever masked locally by `dotnet user-secrets`, which
+  doesn't exist on a fresh runner: `Jwt:SigningKey` and `ConnectionStrings:Default`
+  were both unset in CI, so every `WebApplicationFactory`-based integration test
+  failed at host startup before its own assertions ever ran (not a real product bug -
+  the app and its 202 tests were correct all along; only the CI environment's config
+  was incomplete). Fixed with CI-only throwaway values (job-level env vars in
+  `ci.yml`, plus a real `CI_JWT_SIGNING_KEY` repo secret after gitleaks correctly
+  flagged the first attempt's literal hex string as high-entropy - moving it to an
+  actual secret was the right fix, not silencing the scanner). Verified locally first
+  (58/58 integration tests green with only those env vars set, no user-secrets) before
+  each push. Final state: all 3 CI jobs (`backend`, `frontend`, `secret-scan`) green.
+  One harmless, already-superseded loose end: the very first attempt's literal
+  throwaway JWT hex string is still visible in one now-superseded commit in git
+  history (`0eb1849`) - not a real secret (no production system was ever, or is now,
+  configured to accept it; it was replaced by the repo secret in the next commit), so
+  this was judged not worth a history rewrite to scrub, but is recorded here honestly
+  rather than silently left out.
 - [ ] Deployment - still not done; out of scope for tonight per explicit instruction
   (GitHub push authorized, Neon/Render/Vercel production deployment explicitly not).
 
