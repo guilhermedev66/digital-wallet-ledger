@@ -1,14 +1,18 @@
 import { useCallback, useEffect, useState } from 'react'
+import { AnimatePresence, motion, useReducedMotion } from 'motion/react'
 import { useSearchParams } from 'react-router-dom'
-import { apiClient, isApiError, type LedgerEntry, type Transaction } from '../../api'
+import { apiClient, isApiError, type Transaction } from '../../api'
+import { ChevronDown } from 'lucide-react'
 import { Badge } from '../../components/Badge'
 import { Button } from '../../components/Button'
 import { CopyButton } from '../../components/CopyButton'
 import { EmptyState } from '../../components/EmptyState'
 import { ErrorBanner } from '../../components/ErrorBanner'
-import { SkeletonRows } from '../../components/Skeleton'
+import { SkeletonList } from '../../components/Skeleton'
+import { TxIcon } from '../../components/TxIcon'
 import { useWallets } from '../../hooks/useWallets'
-import { formatAmount } from '../../lib/money'
+import { formatAmount, formatSignedAmount } from '../../lib/money'
+import { describeTx, shortId } from '../../lib/txView'
 import styles from './ActivityPage.module.css'
 
 const PAGE_SIZE = 20
@@ -16,12 +20,17 @@ const PAGE_SIZE = 20
 type Status = 'loading' | 'success' | 'error'
 type ReversePhase = 'idle' | 'confirming' | 'submitting'
 
-function leg(tx: Transaction, direction: LedgerEntry['direction']): LedgerEntry | undefined {
-  return tx.entries.find((e) => e.direction === direction)
-}
+type Period = 'Today' | 'This week' | 'Earlier'
+const PERIODS: Period[] = ['Today', 'This week', 'Earlier']
 
-function shortId(id: string): string {
-  return id.length > 14 ? `${id.slice(0, 6)}…${id.slice(-4)}` : id
+// Buckets use the transactions' real posted dates against the local calendar day.
+function periodOf(iso: string, now: Date): Period {
+  const posted = new Date(iso)
+  const startOfToday = new Date(now.getFullYear(), now.getMonth(), now.getDate()).getTime()
+  const dayMs = 24 * 60 * 60 * 1000
+  if (posted.getTime() >= startOfToday) return 'Today'
+  if (posted.getTime() >= startOfToday - 6 * dayMs) return 'This week'
+  return 'Earlier'
 }
 
 export function ActivityPage() {
@@ -38,6 +47,10 @@ export function ActivityPage() {
   const [reversingId, setReversingId] = useState<string | null>(null)
   const [reversePhase, setReversePhase] = useState<ReversePhase>('idle')
   const [reverseError, setReverseError] = useState<string | null>(null)
+  const [expandedId, setExpandedId] = useState<string | null>(null)
+  // The transaction that was just reversed: its row "rewinds" before the Reversed badge pops in.
+  const [rewindId, setRewindId] = useState<string | null>(null)
+  const reduce = useReducedMotion()
 
   useEffect(() => {
     if (!selectedWalletId && wallets.length > 0) {
@@ -61,7 +74,10 @@ export function ActivityPage() {
   }, [])
 
   useEffect(() => {
-    if (selectedWalletId) load(selectedWalletId)
+    if (selectedWalletId) {
+      setItems([])
+      load(selectedWalletId)
+    }
   }, [selectedWalletId, load])
 
   const hasMore = items.length < totalCount
@@ -99,6 +115,7 @@ export function ActivityPage() {
       await apiClient.reverseTransaction(selectedWalletId, transactionId, crypto.randomUUID())
       setReversingId(null)
       setReversePhase('idle')
+      setRewindId(transactionId)
       await load(selectedWalletId)
     } catch (err) {
       setReverseError(isApiError(err) ? err.message : 'Could not reverse this transaction.')
@@ -106,14 +123,23 @@ export function ActivityPage() {
     }
   }
 
+  const now = new Date()
+  const buckets = PERIODS.map((period) => ({
+    period,
+    txs: items.filter((tx) => periodOf(tx.postedAtUtc, now) === period),
+  })).filter((bucket) => bucket.txs.length > 0)
+
+  const nameOf = (accountId: string) =>
+    wallets.find((w) => w.id === accountId)?.displayName ?? null
+
   return (
-    <div>
+    <div className={styles.page}>
       <div className={styles.header}>
         <div>
           <h1 className={styles.title}>Activity</h1>
           <p className={styles.subtitle}>
-            The journal, not a bank statement — every entry shows both legs. This wallet's own
-            leg is highlighted; the counterparty leg is connected beneath it, never hidden.
+            The journal, not a bank statement — open any row to see both ledger legs. This
+            wallet&apos;s own leg is highlighted; the counterparty leg is never hidden.
           </p>
         </div>
         {walletsStatus === 'success' && wallets.length > 0 && (
@@ -144,174 +170,238 @@ export function ActivityPage() {
         />
       )}
 
-      {selectedWalletId && (
-        <div className={styles.panel}>
-          {status === 'loading' && (
-            <div style={{ padding: 'var(--space-5)' }}>
-              <SkeletonRows count={5} />
-            </div>
-          )}
+      {(selectedWalletId ? status === 'loading' && items.length === 0 : walletsStatus === 'loading') && (
+        <div className={styles.block}>
+          <SkeletonList rows={5} label="Loading activity" />
+        </div>
+      )}
 
-          {status === 'error' && (
-            <div style={{ padding: 'var(--space-5)', display: 'grid', gap: 'var(--space-3)' }}>
-              <ErrorBanner message={error ?? 'Could not load activity.'} />
-              <Button onClick={() => load(selectedWalletId)}>Retry</Button>
-            </div>
-          )}
+      {selectedWalletId && status === 'error' && (
+        <div className={styles.block}>
+          <div className={styles.stack}>
+            <ErrorBanner message={error ?? 'Could not load activity.'} />
+            <Button onClick={() => load(selectedWalletId)}>Retry</Button>
+          </div>
+        </div>
+      )}
 
-          {status === 'success' && items.length === 0 && (
-            <div style={{ padding: 'var(--space-5)' }}>
-              <EmptyState
-                title="No activity yet"
-                description="Fund this wallet or make a transfer to see entries here."
-              />
-            </div>
-          )}
+      {selectedWalletId && status === 'success' && items.length === 0 && (
+        <div className={styles.block}>
+          <EmptyState
+            title="No activity yet"
+            description="Fund this wallet or make a transfer to see entries here."
+          />
+        </div>
+      )}
 
-          {status === 'success' && items.length > 0 && selectedWallet && (
-            <>
-              <div className={styles.journalHead} aria-hidden="true">
-                <span>Entry</span>
-                <span>Own leg</span>
-                <span>Counterparty leg</span>
-                <span>Actions</span>
-              </div>
-              <ol className={styles.journal}>
-                {items.map((tx) => {
-                  const debitEntry = leg(tx, 'Debit')
-                  const creditEntry = leg(tx, 'Credit')
-                  const debitIsOwn = debitEntry?.accountId === selectedWallet.id
-                  const ownEntry = debitIsOwn ? debitEntry : creditEntry
-                  const counterpartyEntry = debitIsOwn ? creditEntry : debitEntry
-                  const ownDirection: 'Debit' | 'Credit' = debitIsOwn ? 'Debit' : 'Credit'
-                  const counterpartyDirection: 'Debit' | 'Credit' = debitIsOwn
-                    ? 'Credit'
-                    : 'Debit'
-                  const isReversed = reversedTransactionIds.has(tx.id)
-                  const canReverse = tx.type !== 'Reversal' && !isReversed
-                  const isConfirming = reversingId === tx.id
-
-                  return (
-                    <li key={tx.id} className={styles.entry}>
-                      <div className={styles.entryHead}>
-                        <div className={styles.entryMeta}>
-                          <time className={styles.entryDate + ' mono'} dateTime={tx.postedAtUtc}>
+      {status !== 'error' && items.length > 0 && selectedWallet && buckets.map(({ period, txs }) => (
+        <section key={period} className={['glass', styles.block].join(' ')} aria-labelledby={`period-${period}`}>
+          <h2 id={`period-${period}`} className={styles.blockTitle}>
+            {period}
+            <span className={styles.count}>{txs.length}</span>
+          </h2>
+          <ol className={styles.list}>
+            {txs.map((tx, idx) => {
+              const view = describeTx(tx, selectedWallet.id)
+              const isReversed = reversedTransactionIds.has(tx.id)
+              const rewinding = rewindId === tx.id
+              const canReverse = tx.type !== 'Reversal' && !isReversed
+              const isConfirming = reversingId === tx.id
+              const isOpen = expandedId === tx.id
+              const counterId = view.counterEntry?.accountId
+              const counterparty =
+                tx.type === 'SimulatedFunding'
+                  ? 'Simulated funding'
+                  : counterId
+                    ? (nameOf(counterId) ?? shortId(counterId))
+                    : '—'
+              const positive = view.signedMinorUnits >= 0
+              const ownDirection = view.ownDirection
+              const counterDirection = ownDirection === 'Debit' ? 'Credit' : 'Debit'
+              return (
+                  <motion.li
+                    key={tx.id}
+                    layout={!reduce}
+                    className={styles.item}
+                    initial={reduce ? { opacity: 0 } : { opacity: 0, y: 18 }}
+                    animate={{ opacity: isReversed ? 0.78 : 1, y: 0 }}
+                    transition={{ duration: 0.4, delay: Math.min(idx, 10) * 0.05, ease: [0.22, 1, 0.36, 1] }}
+                  >
+                    <button
+                      type="button"
+                      className={styles.row}
+                      aria-expanded={isOpen}
+                      aria-controls={`legs-${tx.id}`}
+                      onClick={() => setExpandedId(isOpen ? null : tx.id)}
+                    >
+                      <TxIcon kind={view.kind} />
+                      <span className={styles.rowText}>
+                        <span className={styles.rowTitle}>
+                          {view.label}
+                          <span className={styles.rowCounter}> · {counterparty}</span>
+                        </span>
+                        <span className={styles.rowMeta}>
+                          <time dateTime={tx.postedAtUtc}>
                             {new Date(tx.postedAtUtc).toLocaleString()}
                           </time>
                           <Badge variant="neutral">{tx.type}</Badge>
-                          {isReversed && <Badge variant="danger">Reversed</Badge>}
-                        </div>
+                          <Badge variant="neutral">{selectedWallet.currency}</Badge>
+                          {isReversed ? (
+                            <motion.span
+                              key="reversed"
+                              initial={reduce || !rewinding ? { opacity: 0 } : { scale: 0.3, opacity: 0, rotate: -12 }}
+                              animate={{ scale: 1, opacity: 1, rotate: 0 }}
+                              transition={{ type: 'spring', stiffness: 420, damping: 18, delay: rewinding ? 0.6 : 0 }}
+                              className={styles.badgePop}
+                            >
+                              <Badge variant="danger">Reversed</Badge>
+                            </motion.span>
+                          ) : (
+                            <Badge variant="credit">Posted</Badge>
+                          )}
+                        </span>
+                      </span>
+                      <motion.span
+                        className={[styles.rowAmount, 'amount', positive ? styles.positive : ''].join(' ')}
+                        initial={false}
+                        animate={
+                          isReversed
+                            ? { x: reduce ? 0 : rewinding ? [0, -34, -10] : -10, opacity: 0.55 }
+                            : { x: 0, opacity: 1 }
+                        }
+                        transition={{ duration: 0.35, ease: 'easeOut' }}
+                      >
+                        {formatSignedAmount(view.signedMinorUnits, selectedWallet.currency, positive ? 1 : -1)}
+                        {isReversed && (
+                          <motion.i
+                            className={styles.strike}
+                            aria-hidden="true"
+                            initial={{ scaleX: rewinding ? 0 : 1 }}
+                            animate={{ scaleX: 1 }}
+                            transition={{ delay: rewinding ? 0.3 : 0, duration: 0.25, ease: 'easeOut' }}
+                          />
+                        )}
+                      </motion.span>
+                      <ChevronDown
+                        size={18}
+                        aria-hidden="true"
+                        className={[styles.chevron, isOpen ? styles.chevronOpen : ''].join(' ')}
+                      />
+                    </button>
+                    <AnimatePresence initial={false}>
+                    {isOpen && (
+                      <motion.div
+                        key="detail"
+                        id={`legs-${tx.id}`}
+                        className={styles.detailWrap}
+                        initial={reduce ? { opacity: 0 } : { opacity: 0, y: -10 }}
+                        animate={{ opacity: 1, y: 0 }}
+                        exit={{ opacity: 0, transition: { duration: 0.12 } }}
+                        transition={{ duration: 0.25, ease: 'easeOut' }}
+                      >
+                      <div className={styles.detail}>
                         <div className={styles.entryId}>
                           <span className="mono">{shortId(tx.id)}</span>
                           <CopyButton value={tx.id} label="transaction ID" />
                         </div>
-                      </div>
-
-                      {tx.type === 'Reversal' && tx.reversalOfTransactionId && (
-                        <p className={styles.reversalNote}>
-                          Reverses{' '}
-                          <span className="mono">{shortId(tx.reversalOfTransactionId)}</span>
-                          <CopyButton
-                            value={tx.reversalOfTransactionId}
-                            label="reversed transaction ID"
-                          />
-                        </p>
-                      )}
-
-                      <div className={styles.legs}>
-                        <div className={styles.leg + ' ' + styles.legOwn}>
-                          <Badge variant="neutral">
-                            {ownDirection === 'Debit' ? '↗ Debit' : '↙ Credit'}
-                          </Badge>
-                          <span className={styles.legAccount}>This wallet</span>
-                          <span
-                            className={
-                              'amount ' + (ownDirection === 'Credit' ? styles.positive : '')
-                            }
-                          >
-                            {ownEntry
-                              ? `${ownDirection === 'Debit' ? '+' : '-'}${formatAmount(
-                                  ownEntry.amountMinorUnits,
-                                  ownEntry.currency,
-                                )}`
-                              : '—'}
-                          </span>
-                        </div>
-                        <div className={styles.leg + ' ' + styles.legCounterparty}>
-                          <span className={styles.treeBracket} aria-hidden="true">
-                            └──
-                          </span>
-                          <Badge variant="neutral">
-                            {counterpartyDirection === 'Debit' ? '↗ Debit' : '↙ Credit'}
-                          </Badge>
-                          <span className={styles.legAccount + ' mono'}>
-                            {counterpartyEntry?.accountId ?? '—'}
-                          </span>
-                          <span
-                            className={
-                              'amount ' +
-                              (counterpartyDirection === 'Credit' ? styles.positive : '')
-                            }
-                          >
-                            {counterpartyEntry
-                              ? `${counterpartyDirection === 'Debit' ? '+' : '-'}${formatAmount(
-                                  counterpartyEntry.amountMinorUnits,
-                                  counterpartyEntry.currency,
-                                )}`
-                              : '—'}
-                          </span>
-                        </div>
-                      </div>
-
-                      <div className={styles.entryActions}>
-                        {canReverse && !isConfirming && (
-                          <Button
-                            onClick={() => {
-                              setReversingId(tx.id)
-                              setReversePhase('confirming')
-                              setReverseError(null)
-                            }}
-                          >
-                            Reverse
-                          </Button>
+                        {tx.type === 'Reversal' && tx.reversalOfTransactionId && (
+                          <p className={styles.reversalNote}>
+                            Reverses <span className="mono">{shortId(tx.reversalOfTransactionId)}</span>
+                            <CopyButton
+                              value={tx.reversalOfTransactionId}
+                              label="reversed transaction ID"
+                            />
+                          </p>
                         )}
-                        {isConfirming && (
-                          <div className={styles.reverseConfirm}>
-                            {reverseError && <ErrorBanner message={reverseError} />}
-                            <span>Reverse this transaction?</span>
+                        <div className={styles.legs}>
+                          <div className={[styles.leg, styles.legOwn].join(' ')}>
+                            <Badge variant="neutral">
+                              {ownDirection === 'Debit' ? '↗ Debit' : '↙ Credit'}
+                            </Badge>
+                            <span className={styles.legAccount}>This wallet</span>
+                            <span className={'amount ' + (ownDirection === 'Debit' ? styles.positive : '')}>
+                              {view.ownEntry
+                                ? `${ownDirection === 'Debit' ? '+' : '-'}${formatAmount(
+                                    view.ownEntry.amountMinorUnits,
+                                    view.ownEntry.currency,
+                                  )}`
+                                : '—'}
+                            </span>
+                          </div>
+                          <div className={styles.leg}>
+                            <Badge variant="neutral">
+                              {counterDirection === 'Debit' ? '↗ Debit' : '↙ Credit'}
+                            </Badge>
+                            <span className={styles.legAccount + ' mono'}>
+                              {view.counterEntry?.accountId ?? '—'}
+                            </span>
+                            <span className={'amount ' + (counterDirection === 'Debit' ? styles.positive : '')}>
+                              {view.counterEntry
+                                ? `${counterDirection === 'Debit' ? '+' : '-'}${formatAmount(
+                                    view.counterEntry.amountMinorUnits,
+                                    view.counterEntry.currency,
+                                  )}`
+                                : '—'}
+                            </span>
+                          </div>
+                        </div>
+                        <div className={styles.entryActions}>
+                          {canReverse && !isConfirming && (
                             <Button
-                              variant="primary"
-                              isLoading={reversePhase === 'submitting'}
-                              onClick={() => confirmReverse(tx.id)}
-                            >
-                              Confirm
-                            </Button>
-                            <Button
-                              disabled={reversePhase === 'submitting'}
                               onClick={() => {
-                                setReversingId(null)
-                                setReversePhase('idle')
+                                setReversingId(tx.id)
+                                setReversePhase('confirming')
                                 setReverseError(null)
                               }}
                             >
-                              Cancel
+                              Reverse
                             </Button>
-                          </div>
-                        )}
+                          )}
+                          {isConfirming && (
+                            <motion.div
+                              className={styles.reverseConfirm}
+                              initial={reduce ? { opacity: 0 } : { opacity: 0, y: 8 }}
+                              animate={{ opacity: 1, y: 0 }}
+                              transition={{ duration: 0.25 }}
+                            >
+                              {reverseError && <ErrorBanner message={reverseError} />}
+                              <span>Reverse this transaction?</span>
+                              <Button
+                                variant="primary"
+                                isLoading={reversePhase === 'submitting'}
+                                onClick={() => confirmReverse(tx.id)}
+                              >
+                                Confirm
+                              </Button>
+                              <Button
+                                disabled={reversePhase === 'submitting'}
+                                onClick={() => {
+                                  setReversingId(null)
+                                  setReversePhase('idle')
+                                  setReverseError(null)
+                                }}
+                              >
+                                Cancel
+                              </Button>
+                            </motion.div>
+                          )}
+                        </div>
                       </div>
-                    </li>
-                  )
-                })}
-              </ol>
-              {hasMore && (
-                <div className={styles.footer}>
-                  <Button onClick={loadMore} isLoading={isLoadingMore}>
-                    Load more
-                  </Button>
-                </div>
-              )}
-            </>
-          )}
+                      </motion.div>
+                    )}
+                    </AnimatePresence>
+                  </motion.li>
+              )
+            })}
+          </ol>
+        </section>
+      ))}
+
+      {status === 'success' && hasMore && (
+        <div className={styles.footer}>
+          <Button onClick={loadMore} isLoading={isLoadingMore}>
+            Load more
+          </Button>
         </div>
       )}
     </div>

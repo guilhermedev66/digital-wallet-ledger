@@ -1,28 +1,110 @@
-.row {
-  height: 1em;
+/* Shimmer: a light band sweeps across. Only transform is animated. */
+.block {
+  position: relative;
+  display: block;
+  overflow: hidden;
+  flex: none;
   border-radius: var(--radius-sm);
-  background: linear-gradient(
-    90deg,
-    var(--color-surface-sunken) 25%,
-    var(--color-border) 37%,
-    var(--color-surface-sunken) 63%
-  );
-  background-size: 400% 100%;
-  animation: shimmer 1.4s ease infinite;
+  background: var(--color-surface-elevated);
 }
 
-@keyframes shimmer {
-  0% {
-    background-position: 100% 50%;
+.block::after {
+  content: '';
+  position: absolute;
+  inset: 0;
+  transform: translateX(-100%);
+  background: linear-gradient(
+    90deg,
+    transparent 0%,
+    color-mix(in srgb, var(--color-text) 14%, transparent) 50%,
+    transparent 100%
+  );
+  animation: sweep 1.5s ease-in-out infinite;
+}
+
+.status {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-3);
+}
+
+.cardWrap {
+  width: min(460px, 100%);
+  aspect-ratio: 1.586 / 1;
+  margin: 0 auto;
+}
+
+.card {
+  display: block;
+  width: 100%;
+  height: 100%;
+}
+
+.centered {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: var(--space-3);
+}
+
+.listRow {
+  display: flex;
+  align-items: center;
+  gap: var(--space-3);
+  padding: var(--space-2) 0;
+}
+
+.listText {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.tableRow {
+  display: grid;
+  grid-template-columns: repeat(5, 1fr);
+  gap: var(--space-4);
+  padding: var(--space-3) 0;
+}
+
+.score {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr);
+  gap: var(--space-5);
+}
+
+@media (min-width: 900px) {
+  .score {
+    grid-template-columns: minmax(260px, 0.8fr) minmax(0, 1.2fr);
   }
-  100% {
-    background-position: 0 50%;
+}
+
+.scoreLeft {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-3);
+}
+
+.scoreRight {
+  display: flex;
+  flex-direction: column;
+}
+
+.scoreRight .listRow > :nth-child(2) {
+  flex: 1;
+}
+
+@keyframes sweep {
+  to {
+    transform: translateX(100%);
   }
 }
 
 @media (prefers-reduced-motion: reduce) {
-  .row {
+  .block::after {
     animation: none;
-    background: var(--color-surface-sunken);
+    transform: none;
+    opacity: 0.4;
   }
 }

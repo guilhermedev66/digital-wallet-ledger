@@ -1,21 +1,22 @@
 .container {
   display: flex;
   flex-direction: column;
-  align-items: flex-start;
-  gap: var(--space-2);
-  padding: var(--space-6) var(--space-4);
+  align-items: center;
+  gap: var(--space-3);
+  padding: var(--space-7) var(--space-4);
   border: 1px dashed var(--color-border-strong);
-  border-radius: var(--radius-sm);
+  border-radius: var(--radius-md);
   color: var(--color-text-muted);
+  text-align: center;
 }
 
 .title {
-  font-size: 14px;
-  font-weight: 600;
+  font-size: 18px;
+  font-weight: 700;
   color: var(--color-text);
 }
 
 .description {
-  font-size: 13px;
-  max-width: 42ch;
+  font-size: 14px;
+  max-width: 52ch;
 }
