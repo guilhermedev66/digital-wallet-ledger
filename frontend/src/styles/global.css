@@ -107,3 +107,42 @@ a {
     transition-duration: 0.001ms !important;
   }
 }
+
+/* Frosted surface used by sidebar, header and cards over the cosmic background. */
+.glass {
+  background: color-mix(in srgb, var(--color-surface) 62%, transparent);
+  -webkit-backdrop-filter: blur(18px) saturate(140%);
+  backdrop-filter: blur(18px) saturate(140%);
+  border: 1px solid color-mix(in srgb, var(--color-border-strong) 55%, transparent);
+}
+
+#root {
+  position: relative;
+  isolation: isolate;
+}
+
+/* Press feedback: every button squeezes to 0.97 for 100 ms while pressed. Transform only. */
+@keyframes press-in {
+  from {
+    transform: scale(1);
+  }
+  to {
+    transform: scale(0.97);
+  }
+}
+
+button:not(:disabled):active,
+[role='button']:not([aria-disabled='true']):active,
+[role='tab']:not(:disabled):active,
+[role='radio']:not(:disabled):active {
+  animation: press-in 100ms ease-out forwards;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  button:not(:disabled):active,
+  [role='button']:active,
+  [role='tab']:active,
+  [role='radio']:active {
+    animation: none;
+  }
+}

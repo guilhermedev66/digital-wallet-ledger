@@ -1,5 +1,12 @@
-import { useEffect, useState, type FormEvent } from 'react'
+import { useEffect, useRef, useState, type FormEvent } from 'react'
 import { useSearchParams } from 'react-router-dom'
+import { motion, useReducedMotion } from 'motion/react'
+import { ArrowDownToLine, ArrowUpFromLine, Coins } from 'lucide-react'
+import { AmountDisplay } from '../../components/AmountDisplay'
+import { AnimatedDigits } from '../../components/AnimatedDigits'
+import { FlightCoin } from '../../components/FlightCoin'
+import { SuccessCheck } from '../../components/SuccessCheck'
+import { WalletCreditCard } from '../../components/WalletCreditCard'
 import { apiClient, isApiError, type Transaction } from '../../api'
 import { Badge } from '../../components/Badge'
 import { Button } from '../../components/Button'
@@ -15,10 +22,10 @@ import styles from './TransferPage.module.css'
 
 type Phase = 'form' | 'submitting' | 'success'
 
-const QUICK_FRACTIONS: { label: string; fraction: number | null }[] = [
-  { label: '25%', fraction: 0.25 },
-  { label: '50%', fraction: 0.5 },
-  { label: 'MAX', fraction: null },
+const QUICK_FRACTIONS: { value: string; label: string; fraction: number | null }[] = [
+  { value: '25', label: '25%', fraction: 0.25 },
+  { value: '50', label: '50%', fraction: 0.5 },
+  { value: 'max', label: 'MAX', fraction: null },
 ]
 
 export function TransferPage() {
@@ -33,6 +40,12 @@ export function TransferPage() {
   const [error, setError] = useState<string | null>(null)
   const [idempotencyKey, setIdempotencyKey] = useState(() => crypto.randomUUID())
   const [completedTransaction, setCompletedTransaction] = useState<Transaction | null>(null)
+  const [quick, setQuick] = useState('none')
+  const reduce = useReducedMotion()
+  const [arrived, setArrived] = useState(false)
+  const routeRef = useRef<HTMLDivElement>(null)
+  const fromCardRef = useRef<HTMLDivElement>(null)
+  const toCardRef = useRef<HTMLDivElement>(null)
 
   useEffect(() => {
     if (fromWalletId || wallets.length === 0) return
@@ -64,8 +77,10 @@ export function TransferPage() {
     !exceedsBalance &&
     !knownCurrencyMismatch
 
-  function applyQuickFraction(fraction: number | null) {
-    if (!fromWallet) return
+  function applyQuickFraction(value: string) {
+    const fraction = QUICK_FRACTIONS.find((q) => q.value === value)?.fraction
+    if (!fromWallet || fraction === undefined) return
+    setQuick(value)
     const targetMinorUnits =
       fraction === null ? fromWallet.balanceMinorUnits : Math.floor(fromWallet.balanceMinorUnits * fraction)
     setAmount((targetMinorUnits / 100).toFixed(2))
@@ -105,6 +120,8 @@ export function TransferPage() {
     setCompletedTransaction(null)
     setPhase('form')
     setAmount('')
+    setQuick('none')
+    setArrived(false)
     setToWalletId('')
     setIdempotencyKey(crypto.randomUUID())
   }
@@ -115,6 +132,7 @@ export function TransferPage() {
   // still-valid idempotency key - only the fields the user was actively filling in.
   function clearForm() {
     setAmount('')
+    setQuick('none')
     setToWalletId('')
     setError(null)
   }
@@ -124,9 +142,21 @@ export function TransferPage() {
   const sourceCreditEntry = completedTransaction?.entries.find((e) => e.direction === 'Credit')
   const destinationDebitEntry = completedTransaction?.entries.find((e) => e.direction === 'Debit')
 
+  const currency = fromWallet?.currency ?? 'USD'
+  const showManifest = hasValidAmount && Boolean(fromWalletId) && toWalletId.trim().length > 0 && !knownCurrencyMismatch
+  const destAfter =
+    toWallet && hasValidAmount ? toWallet.balanceMinorUnits + minorUnits : null
+  const routeReady = showManifest && !exceedsBalance
+
   return (
-    <div>
-      <h1 className={styles.title}>Transfer</h1>
+    <div className={styles.page}>
+      <div className={styles.header}>
+        <h1 className={styles.title}>Transfer</h1>
+        <p className={styles.subtitle}>
+          Move money between wallets of the same currency. Every transfer posts two ledger legs
+          atomically.
+        </p>
+      </div>
 
       {walletsStatus === 'error' && (
         <div className={styles.stateBox}>
@@ -142,19 +172,74 @@ export function TransferPage() {
         />
       )}
 
-      {walletsStatus === 'success' && wallets.length > 0 && (
+      {wallets.length > 0 && (
         <>
           {phase === 'success' && completedTransaction ? (
-            <div className={styles.receiptPanel}>
-              <p className={styles.sealedBanner}>
-                <span aria-hidden="true">✓</span> Transaction sealed &amp; posted to ledger
-              </p>
+            <>
+              {/* The coin flies source -> destination; the destination card hops and glows on arrival. */}
+              <section className={['glass', styles.hero].join(' ')} aria-label="Transfer route">
+                <div className={styles.route} ref={routeRef} style={{ position: 'relative' }}>
+                  <div className={styles.miniCard} ref={fromCardRef}>
+                    {fromWallet && <WalletCreditCard wallet={fromWallet} compact />}
+                  </div>
+                  <div className={styles.arrow} aria-hidden="true">
+                    <span className={styles.arrowLine} />
+                    <svg viewBox="0 0 24 24" width="26" height="26" className={styles.arrowHeadReady}>
+                      <path d="M5 12h14M13 6l6 6-6 6" fill="none" stroke="currentColor" strokeWidth="2.4" strokeLinecap="round" strokeLinejoin="round" />
+                    </svg>
+                  </div>
+                  <motion.div
+                    className={styles.miniCard}
+                    ref={toCardRef}
+                    animate={(arrived || reduce) && !reduce ? { y: [0, -16, 0], scale: [1, 1.05, 1] } : undefined}
+                    transition={{ type: 'spring', stiffness: 420, damping: 12 }}
+                    style={{ position: 'relative' }}
+                  >
+                    {toWallet ? (
+                      <WalletCreditCard wallet={toWallet} compact />
+                    ) : (
+                      <div className={styles.destPlaceholder}>
+                        <span className={styles.destTitle}>External wallet</span>
+                        <span className={styles.destId + ' mono'}>{destinationDebitEntry?.accountId}</span>
+                      </div>
+                    )}
+                    <motion.span
+                      className={styles.arriveGlow}
+                      aria-hidden="true"
+                      initial={{ opacity: 0 }}
+                      animate={{ opacity: arrived || reduce ? [0, 1, 0] : 0 }}
+                      transition={{ duration: reduce ? 0.6 : 0.9, ease: 'easeOut' }}
+                    />
+                  </motion.div>
+                  <FlightCoin
+                    containerRef={routeRef}
+                    fromRef={fromCardRef}
+                    toRef={toCardRef}
+                    onArrive={() => setArrived(true)}
+                  />
+                </div>
+              </section>
+            <motion.div
+              className={styles.receiptPanel}
+              initial={reduce ? false : { opacity: 0, y: 24, scale: 0.97 }}
+              animate={{ opacity: 1, y: 0, scale: 1 }}
+              transition={{ duration: 0.5, delay: reduce ? 0 : 0.45, ease: [0.22, 1, 0.36, 1] }}
+            >
+              <div className={styles.sealed} role="status">
+                <SuccessCheck />
+                <p className={styles.sealedBanner}>Transaction sealed &amp; posted to ledger</p>
+                <AmountDisplay
+                  minorUnits={sourceCreditEntry?.amountMinorUnits ?? 0}
+                  currency={sourceCreditEntry?.currency ?? 'USD'}
+                  className={styles.sealedAmount}
+                />
+              </div>
               <table className={tableStyles.table}>
                 <thead>
                   <tr>
                     <th>Leg</th>
                     <th>Account</th>
-                    <th>Amount</th>
+                    <th className={tableStyles.numeric}>Amount</th>
                   </tr>
                 </thead>
                 <tbody>
@@ -206,25 +291,76 @@ export function TransferPage() {
                   Initiate another transfer
                 </Button>
               </div>
-            </div>
+            </motion.div>
+            </>
           ) : (
-            <div className={styles.composition}>
-              <form onSubmit={handleSubmit} noValidate className={styles.connector}>
-                {error && (
-                  <div className={styles.formError}>
-                    <ErrorBanner message={error} />
-                  </div>
-                )}
+            <>
+              {/* Hero: huge typed amount, quick tabs, source -> destination mini cards */}
+              <section className={['glass', styles.hero].join(' ')} aria-label="Transfer summary">
+                <span className={styles.heroLabel}>You send</span>
+                <div className={styles.heroAmount}>
+                  <span className={styles.heroCurrency}>{currency}</span>
+                  <AnimatedDigits text={amount} placeholder="0.00" />
+                </div>
+                <div className={styles.quickWrap} role="tablist" aria-label="Quick amounts">
+                  {QUICK_FRACTIONS.map((q) => (
+                    <button
+                      key={q.value}
+                      type="button"
+                      role="tab"
+                      aria-selected={quick === q.value}
+                      className={[styles.quickTab, quick === q.value ? styles.quickTabActive : ''].join(' ')}
+                      onClick={() => applyQuickFraction(q.value)}
+                      disabled={phase === 'submitting' || !fromWallet}
+                    >
+                      {quick === q.value && (
+                        <motion.span
+                          layoutId="quick-pill"
+                          className={styles.quickPill}
+                          transition={reduce ? { duration: 0 } : { type: 'spring', stiffness: 500, damping: 36 }}
+                        />
+                      )}
+                      <span className={styles.quickText}>{q.label}</span>
+                    </button>
+                  ))}
+                </div>
 
-                {/* Node 1 — Source wallet */}
-                <div className={styles.node}>
-                  <div className={styles.nodeTrack} aria-hidden="true">
-                    <span className={styles.nodeDot} />
-                    <span className={styles.nodeLine} />
+                <div className={styles.route}>
+                  <div className={styles.miniCard}>
+                    {fromWallet && <WalletCreditCard wallet={fromWallet} compact />}
                   </div>
-                  <div className={styles.nodeBody}>
-                    <h2 className={styles.nodeLabel}>From</h2>
+                  <div className={styles.arrow} aria-hidden="true">
+                    <span className={styles.arrowLine} />
+                    {routeReady && !reduce && <span className={styles.arrowPulse} />}
+                    <svg viewBox="0 0 24 24" width="26" height="26" className={routeReady ? styles.arrowHeadReady : styles.arrowHead}>
+                      <path d="M5 12h14M13 6l6 6-6 6" fill="none" stroke="currentColor" strokeWidth="2.4" strokeLinecap="round" strokeLinejoin="round" />
+                    </svg>
+                  </div>
+                  <div className={styles.miniCard}>
+                    {toWallet ? (
+                      <WalletCreditCard wallet={toWallet} compact />
+                    ) : (
+                      <div className={styles.destPlaceholder}>
+                        <span className={styles.destTitle}>
+                          {toWalletId.trim() ? 'External wallet' : 'Destination'}
+                        </span>
+                        <span className={styles.destId + ' mono'}>
+                          {toWalletId.trim() ? toWalletId.trim() : 'Paste a wallet ID below'}
+                        </span>
+                      </div>
+                    )}
+                  </div>
+                </div>
+              </section>
 
+              <div className={styles.layout}>
+                <form onSubmit={handleSubmit} noValidate className={['glass', styles.card].join(' ')}>
+                  {error && <ErrorBanner message={error} />}
+
+                  <section className={styles.section} aria-labelledby="tf-from">
+                    <h2 id="tf-from" className={styles.sectionLabel}>
+                      From
+                    </h2>
                     {wallets.length > 1 ? (
                       <div className={styles.pillGroup} role="radiogroup" aria-label="Source wallet">
                         {wallets.map((w) => (
@@ -246,85 +382,47 @@ export function TransferPage() {
                       </div>
                     ) : (
                       fromWallet && (
-                        <div className={styles.walletChip}>
-                          <span className={styles.chipCurrency}>{fromWallet.currency}</span>
+                        <div className={styles.pill + ' ' + styles.pillActive}>
+                          <span className={styles.pillCurrency}>{fromWallet.currency}</span>
                           {fromWallet.displayName ?? 'Untitled wallet'}
                         </div>
                       )
                     )}
-
                     {fromWallet && (
                       <div className={styles.nodeMeta}>
                         <span className="mono">{fromWallet.id}</span>
-                        <span className={styles.nodeBalance + ' amount'}>
+                        <span className="amount">
                           Avail {formatAmount(fromWallet.balanceMinorUnits, fromWallet.currency)}
                         </span>
                       </div>
                     )}
-                  </div>
-                </div>
+                  </section>
 
-                {/* Node 2 — Amount (the focal point of the flow) */}
-                <div className={styles.node}>
-                  <div className={styles.nodeTrack} aria-hidden="true">
-                    <span className={[styles.nodeDot, styles.nodeDotAccent].join(' ')} />
-                    <span className={styles.nodeLine} />
-                  </div>
-                  <div className={styles.nodeBody}>
-                    <h2 className={styles.nodeLabel}>Amount</h2>
-                    {/* Brex "Email Capture Input" pairing (M8.2_RECIPE.md TRANSFER row): the
-                        field sits flush against its action with a 4-8px gap. The quick-fraction
-                        chips now live in the amount field's own suffix slot instead of a second
-                        row below a wrapping bordered panel - one hairline border (the input
-                        well's) instead of a panel-in-panel double border. */}
+                  <section className={styles.section} aria-label="Amount">
                     <LabelInput
                       label={`Amount${fromWallet ? ` (${fromWallet.currency})` : ''}`}
                       placeholder="0.00"
                       inputMode="decimal"
                       required
-                      scale="lg"
                       value={amount}
-                      onChange={(e) => setAmount(e.target.value)}
+                      onChange={(e) => {
+                        setAmount(e.target.value)
+                        setQuick('none')
+                      }}
                       disabled={phase === 'submitting'}
                       prefixSlot={fromWallet?.currency}
-                      suffixSlot={
-                        <div className={styles.quickChips}>
-                          {QUICK_FRACTIONS.map((q) => (
-                            <button
-                              key={q.label}
-                              type="button"
-                              className={styles.quickChip}
-                              onClick={() => applyQuickFraction(q.fraction)}
-                              disabled={phase === 'submitting' || !fromWallet}
-                            >
-                              {q.label}
-                            </button>
-                          ))}
-                        </div>
-                      }
                       error={
                         exceedsBalance
                           ? `Exceeds available balance (${formatAmount(fromWallet!.balanceMinorUnits, fromWallet!.currency)} max).`
                           : undefined
                       }
                     />
-                    {remainingAfter !== null && fromWallet && !exceedsBalance && (
-                      <p className={styles.nodeHint}>
-                        Remaining balance after transfer:{' '}
-                        <span className="mono">{formatAmount(remainingAfter, fromWallet.currency)}</span>
-                      </p>
-                    )}
-                  </div>
-                </div>
+                  </section>
 
-                {/* Node 3 — Destination wallet */}
-                <div className={styles.node}>
-                  <div className={styles.nodeTrack} aria-hidden="true">
-                    <span className={styles.nodeDot} />
-                    <span className={styles.nodeLine} />
-                  </div>
-                  <div className={styles.nodeBody}>
-                    <h2 className={styles.nodeLabel}>To</h2>
+                  <section className={styles.section} aria-labelledby="tf-to">
+                    <h2 id="tf-to" className={styles.sectionLabel}>
+                      To
+                    </h2>
                     <LabelInput
                       label="Destination wallet ID"
                       placeholder="wallet_..."
@@ -336,9 +434,7 @@ export function TransferPage() {
                     />
                     {toWalletId.trim().length > 0 && (
                       <div className={styles.destPreview}>
-                        {knownCurrencyMatch && (
-                          <Badge variant="credit">✓ {toWallet?.currency} match</Badge>
-                        )}
+                        {knownCurrencyMatch && <Badge variant="credit">✓ {toWallet?.currency} match</Badge>}
                         {knownCurrencyMismatch && (
                           <Badge variant="danger">
                             {toWallet?.currency} ≠ {fromWallet?.currency}
@@ -356,94 +452,12 @@ export function TransferPage() {
                         message={`Currency mismatch: source is ${fromWallet?.currency}, destination is ${toWallet.currency}. Cross-currency transfers aren't supported.`}
                       />
                     )}
-                  </div>
-                </div>
+                  </section>
 
-                {/* Node 4 — Review */}
-                <div className={styles.node}>
-                  <div className={styles.nodeTrack} aria-hidden="true">
-                    <span className={styles.nodeDot} />
-                    <span className={styles.nodeLine} />
-                  </div>
-                  <div className={styles.nodeBody} aria-live="polite">
-                    <h2 className={styles.nodeLabel}>Review</h2>
-                    {hasValidAmount && fromWalletId && toWalletId.trim() && !knownCurrencyMismatch ? (
-                      <div className={styles.review}>
-                        <div className={styles.reviewSummary}>
-                          <span className={styles.reviewChip}>
-                            {fromWallet?.currency} · {fromWallet?.displayName ?? fromWalletId}
-                          </span>
-                          <span className={styles.reviewArrow} aria-hidden="true">
-                            →
-                          </span>
-                          <span className={styles.reviewChip}>
-                            {toWallet ? `${toWallet.currency} · ${toWallet.displayName ?? toWallet.id}` : 'External wallet'}
-                          </span>
-                        </div>
-                        <p className={styles.reviewAmount + ' amount'}>
-                          {formatAmount(minorUnits!, fromWallet?.currency ?? 'USD')}
-                        </p>
-                        <p className={styles.nodeHint}>
-                          Exactly these two ledger legs will be posted atomically:
-                        </p>
-                        <table className={tableStyles.table}>
-                          <tbody>
-                            <tr>
-                              <td data-label="Leg" className={styles.legLabel}>
-                                CREDIT
-                              </td>
-                              <td data-label="Account" className="mono">
-                                {fromWallet?.displayName ?? fromWalletId}
-                              </td>
-                              <td
-                                data-label="Amount"
-                                className={tableStyles.numeric + ' amount ' + styles.legAmountCredit}
-                              >
-                                -{formatAmount(minorUnits!, fromWallet?.currency ?? 'USD')}
-                              </td>
-                            </tr>
-                            <tr>
-                              <td data-label="Leg" className={styles.legLabel}>
-                                DEBIT
-                              </td>
-                              <td data-label="Account" className="mono">
-                                {toWallet?.displayName ?? toWalletId.trim()}
-                              </td>
-                              <td data-label="Amount" className={tableStyles.numeric + ' amount'}>
-                                +{formatAmount(minorUnits!, fromWallet?.currency ?? 'USD')}
-                              </td>
-                            </tr>
-                          </tbody>
-                        </table>
-                        <div className={styles.zeroSumStrip}>
-                          <span>Σ Debits = Σ Credits</span>
-                          <span className={styles.zeroSumOk}>$0.00 difference · balanced</span>
-                        </div>
-                      </div>
-                    ) : (
-                      <p className={styles.nodeHint}>
-                        Fill in the destination and amount to see the exact entries before you
-                        confirm.
-                      </p>
-                    )}
-                  </div>
-                </div>
-
-                {/* Node 5 — Confirm */}
-                <div className={styles.node}>
-                  <div className={styles.nodeTrack} aria-hidden="true">
-                    <span className={[styles.nodeDot, styles.nodeDotAccent].join(' ')} />
-                  </div>
-                  <div className={styles.nodeBody}>
-                    <h2 className={styles.nodeLabel}>Confirm</h2>
-                    {/* Brex "Cookie Consent Dialog" 3-button hierarchy (M8.2_RECIPE.md TRANSFER
-                        row): filled primary / outlined secondary / text-link tertiary. Primary
-                        is the FlowButton (Spell Pop Button press mechanic, unchanged). Outlined
-                        secondary is "Clear form" - a real, non-destructive way to back out that
-                        previously had no affordance beyond deleting each field by hand. The
-                        text-link tertiary is the existing Regenerate action below, kept next to
-                        the idempotency key it regenerates rather than pulled up into this row,
-                        since its meaning depends on that adjacency. */}
+                  <section className={styles.section} aria-labelledby="tf-confirm">
+                    <h2 id="tf-confirm" className={styles.sectionLabel}>
+                      Confirm
+                    </h2>
                     <div className={styles.confirmActions}>
                       <FlowButton
                         type="submit"
@@ -483,10 +497,107 @@ export function TransferPage() {
                       Resubmission protection: an identical key replays the posted result instead of
                       double-posting.
                     </p>
+                  </section>
+                </form>
+
+                <aside className={['glass', styles.manifest].join(' ')} aria-labelledby="manifest-title" aria-live="polite">
+                  <div className={styles.manifestHead}>
+                    <h2 id="manifest-title" className={styles.manifestTitle}>
+                      Double-entry manifest
+                    </h2>
+                    <span className={styles.manifestSub}>Exactly these legs post, atomically</span>
                   </div>
-                </div>
-              </form>
-            </div>
+                  <ul className={styles.rows}>
+                    <li className={styles.mRow}>
+                      <span className={[styles.mIcon, styles.mIconOut].join(' ')} aria-hidden="true">
+                        <ArrowUpFromLine size={16} />
+                      </span>
+                      <div className={styles.mText}>
+                        <span className={styles.mLabel}>Credit · source</span>
+                        <span className={styles.mSub}>{fromWallet?.displayName ?? 'Source wallet'}</span>
+                      </div>
+                      <div className={styles.mValues}>
+                        <span className={styles.mValue + ' amount'}>
+                          {showManifest ? (
+                            <>
+                              -<AmountDisplay minorUnits={minorUnits!} currency={currency} />
+                            </>
+                          ) : (
+                            '—'
+                          )}
+                        </span>
+                        <span className={styles.mVar + ' amount'}>
+                          {showManifest && fromWallet && remainingAfter !== null ? (
+                            <>
+                              {formatAmount(fromWallet.balanceMinorUnits, currency)} →{' '}
+                              <AmountDisplay minorUnits={remainingAfter} currency={currency} />
+                            </>
+                          ) : (
+                            ''
+                          )}
+                        </span>
+                      </div>
+                    </li>
+                    <li className={styles.mRow}>
+                      <span className={[styles.mIcon, styles.mIconIn].join(' ')} aria-hidden="true">
+                        <ArrowDownToLine size={16} />
+                      </span>
+                      <div className={styles.mText}>
+                        <span className={styles.mLabel}>Debit · destination</span>
+                        <span className={styles.mSub}>
+                          {toWallet?.displayName ??
+                            (toWalletId.trim() ? 'External wallet' : 'Destination wallet')}
+                        </span>
+                      </div>
+                      <div className={styles.mValues}>
+                        <span className={styles.mValue + ' amount ' + styles.mPositive}>
+                          {showManifest ? (
+                            <>
+                              +<AmountDisplay minorUnits={minorUnits!} currency={currency} />
+                            </>
+                          ) : (
+                            '—'
+                          )}
+                        </span>
+                        <span className={styles.mVar + ' amount'}>
+                          {showManifest && toWallet && destAfter !== null ? (
+                            <>
+                              {formatAmount(toWallet.balanceMinorUnits, currency)} →{' '}
+                              <AmountDisplay minorUnits={destAfter} currency={currency} />
+                            </>
+                          ) : showManifest ? (
+                            'balance not visible'
+                          ) : (
+                            ''
+                          )}
+                        </span>
+                      </div>
+                    </li>
+                    <li className={styles.mRow}>
+                      <span className={styles.mIcon} aria-hidden="true">
+                        <Coins size={16} />
+                      </span>
+                      <div className={styles.mText}>
+                        <span className={styles.mLabel}>Currency</span>
+                        <span className={styles.mSub}>Both legs, same currency</span>
+                      </div>
+                      <div className={styles.mValues}>
+                        <span className={styles.mValue}>{currency}</span>
+                        <span className={styles.mVar}>
+                          {knownCurrencyMatch ? 'match ✓' : knownCurrencyMismatch ? 'mismatch' : ''}
+                        </span>
+                      </div>
+                    </li>
+                  </ul>
+                  <div className={styles.zeroSumStrip}>
+                    <span>Σ Debits = Σ Credits</span>
+                    <span className={styles.zeroSumOk + ' amount'}>
+                      {showManifest ? `${formatAmount(0, currency)} difference · balanced` : 'waiting for input'}
+                    </span>
+                  </div>
+                </aside>
+              </div>
+            </>
           )}
         </>
       )}

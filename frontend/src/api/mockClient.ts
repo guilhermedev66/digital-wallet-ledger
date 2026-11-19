@@ -436,4 +436,95 @@ export class MockApiClient implements ApiClient {
       totalCount: related.length,
     }
   }
+
+  /**
+   * Mock-only demo seed: 4 wallets (2 USD, 1 EUR, 1 GBP), deposits, ~15 same-currency
+   * transfers spread over the last 30 days and 1 reversal. Entries go through the same
+   * balanced double-entry shape as real postings (Debit-normal); only postedAtUtc is
+   * backdated. Chronological posting + balance checks keep every wallet >= 0.
+   */
+  async loadDemoData(): Promise<void> {
+    await delay(300)
+    const userId = this.requireAuth()
+    const DAY = 24 * 60 * 60 * 1000
+    const now = Date.now()
+    const mk = (currency: Currency, name: string): Wallet => {
+      const wallet: Wallet = {
+        id: id('wallet'),
+        ownerUserId: userId,
+        currency,
+        displayName: `Demo · ${name}`,
+        createdAtUtc: new Date(now - 31 * DAY).toISOString(),
+      }
+      this.db.wallets.push(wallet)
+      return wallet
+    }
+    const main = mk('USD', 'Main')
+    const savings = mk('USD', 'Savings')
+    const euro = mk('EUR', 'Euro Travel')
+    const pound = mk('GBP', 'Pound Fund')
+
+    const post = (
+      daysAgo: number,
+      type: Transaction['type'],
+      entries: Transaction['entries'],
+      reversalOf: string | null = null,
+    ): Transaction => {
+      const tx: Transaction = {
+        id: id('tx'),
+        postedAtUtc: new Date(now - daysAgo * DAY + 9 * 3600_000).toISOString(),
+        type,
+        reversalOfTransactionId: reversalOf,
+        entries,
+      }
+      this.db.transactions.push(tx)
+      return tx
+    }
+    const fund = (daysAgo: number, w: Wallet, amount: number) =>
+      post(daysAgo, 'SimulatedFunding', [
+        { accountId: w.id, direction: 'Debit', amountMinorUnits: amount, currency: w.currency },
+        { accountId: SYSTEM_FUNDING_ACCOUNT_ID, direction: 'Credit', amountMinorUnits: amount, currency: w.currency },
+      ])
+    const move = (daysAgo: number, from: Wallet, to: Wallet, amount: number) => {
+      if (walletBalance(this.db, from.id) < amount) return null
+      return post(daysAgo, 'Transfer', [
+        { accountId: from.id, direction: 'Credit', amountMinorUnits: amount, currency: from.currency },
+        { accountId: to.id, direction: 'Debit', amountMinorUnits: amount, currency: to.currency },
+      ])
+    }
+
+    fund(30, main, 480000)
+    fund(29, euro, 220000)
+    fund(29, pound, 150000)
+    fund(26, savings, 120000)
+    // 15 USD transfers between the two same-currency wallets (no cross-currency moves).
+    const plan: Array<[number, 'ms' | 'sm', number]> = [
+      [28, 'ms', 75000], [26, 'ms', 42000], [24, 'sm', 30000], [22, 'ms', 118000], [20, 'ms', 9900],
+      [18, 'sm', 54000], [16, 'ms', 66000], [14, 'ms', 23500], [12, 'sm', 80000], [10, 'ms', 15000],
+      [8, 'ms', 91000], [6, 'sm', 27000], [5, 'ms', 38000], [3, 'ms', 12500], [1, 'sm', 20000],
+    ]
+    fund(21, euro, 90000)
+    fund(15, pound, 60000)
+    fund(11, main, 150000)
+    fund(7, euro, 45000)
+    let reversible: Transaction | null = null
+    for (const [days, dir, amount] of plan) {
+      const tx = dir === 'ms' ? move(days, main, savings, amount) : move(days, savings, main, amount)
+      if (tx && days === 12) reversible = tx
+    }
+    // 1 reversal of a transfer that debited `main` (its own wallet), so self-service rules hold.
+    const target = reversible ?? this.db.transactions.find((t) => t.type === 'Transfer')
+    if (target) {
+      const debited = target.entries.find((e) => e.direction === 'Debit')!
+      if (walletBalance(this.db, debited.accountId) >= debited.amountMinorUnits) {
+        post(
+          0.2,
+          'Reversal',
+          target.entries.map((e) => ({ ...e, direction: e.direction === 'Debit' ? 'Credit' : 'Debit' })),
+          target.id,
+        )
+      }
+    }
+    saveDb(this.db)
+  }
 }

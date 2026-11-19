@@ -1,95 +1,69 @@
 .shell {
   display: flex;
-  flex-direction: column;
   min-height: 100svh;
 }
 
-.header {
+/* ---- Sidebar (desktop) ---- */
+.sidebar {
   position: sticky;
   top: 0;
-  z-index: 20;
-  border-bottom: 1px solid var(--color-border);
-  background: color-mix(in srgb, var(--color-surface) 92%, transparent);
-  backdrop-filter: blur(12px);
-  -webkit-backdrop-filter: blur(12px);
-}
-
-.headerInner {
-  max-width: var(--shell-max-width);
-  margin: 0 auto;
-  padding: 0 var(--space-5);
-  height: 56px;
+  align-self: flex-start;
+  flex: 0 0 248px;
+  width: 248px;
+  height: 100svh;
   display: flex;
-  align-items: center;
-  gap: var(--space-6);
+  flex-direction: column;
+  gap: var(--space-5);
+  padding: var(--space-5) var(--space-4);
+  background: color-mix(in srgb, var(--color-surface) 52%, transparent);
+  -webkit-backdrop-filter: blur(24px) saturate(150%);
+  backdrop-filter: blur(24px) saturate(150%);
+  border-right: 1px solid color-mix(in srgb, var(--color-border-strong) 50%, transparent);
 }
 
-.identity {
-  display: flex;
-  align-items: center;
-  gap: var(--space-2);
-  flex-shrink: 0;
+.brandRow {
+  padding: 0 var(--space-2);
 }
 
-.brand {
-  font-family: var(--font-ui);
-  font-weight: 700;
-  font-size: 13px;
-  letter-spacing: 0.08em;
-  text-transform: uppercase;
-  white-space: nowrap;
+.brandCompact {
+  display: none;
 }
 
-.statusDot {
-  width: 6px;
-  height: 6px;
-  border-radius: 50%;
-  background: var(--color-credit);
-  flex-shrink: 0;
-}
-
-.terminalBadge {
-  font-size: var(--text-caption-size);
-  font-weight: var(--text-caption-weight);
-  letter-spacing: var(--text-caption-tracking);
-  color: var(--color-text-faint);
-  border: 1px solid var(--color-border);
-  border-radius: var(--radius-sm);
-  padding: 1px var(--space-1);
-}
-
-/* Segmented instrument rail - a recessed well housing the active-segment
-   indicator, not a loose row of text links (DESIGN_BRIEF_M8.1.md §3.2.1). */
 .nav {
   display: flex;
-  align-items: center;
-  gap: 2px;
-  flex: 1;
-  height: 32px;
-  padding: 2px;
-  background: var(--color-surface-sunken);
-  border: 1px solid var(--color-border);
-  border-radius: var(--radius-sm);
-  width: fit-content;
+  flex-direction: column;
+  gap: var(--space-4);
+}
+
+.section {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-1);
+}
+
+.sectionTitle {
+  padding: 0 var(--space-4);
+  margin-bottom: var(--space-1);
+  font-size: 11px;
+  font-weight: 800;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  color: var(--color-text-faint);
 }
 
 .navLink {
-  display: inline-flex;
+  position: relative;
+  display: flex;
   align-items: center;
-  height: 100%;
-  padding: 0 var(--space-3);
-  border-radius: var(--radius-sm);
-  font-family: var(--font-ui);
-  font-size: var(--text-label-size);
-  font-weight: var(--text-label-weight);
-  letter-spacing: 0.02em;
+  gap: var(--space-3);
+  height: 44px;
+  padding: 0 var(--space-4);
+  border-radius: var(--radius-pill);
+  font-size: 15px;
+  font-weight: 600;
   color: var(--color-text-muted);
   text-decoration: none;
-  border-bottom: 2px solid transparent;
-  transition:
-    color 0.1s ease,
-    background-color 0.1s ease,
-    border-color 0.1s ease;
+  transition: color 0.15s ease;
 }
 
 .navLink:hover {
@@ -97,31 +71,72 @@
 }
 
 .navLinkActive {
-  color: var(--color-text);
-  background: var(--color-surface-elevated);
-  border-bottom-color: var(--color-accent);
+  color: var(--color-accent-contrast);
 }
 
-.headerActions {
+/* Sliding pill shared between items via motion layoutId */
+.indicator {
+  position: absolute;
+  inset: 0;
+  border-radius: var(--radius-pill);
+  background: var(--color-accent);
+}
+
+.navIcon,
+.navLabel {
+  position: relative;
+}
+
+/* Icon micro-animation on hover */
+.navIcon {
+  transition: transform 0.25s cubic-bezier(0.34, 1.56, 0.64, 1);
+}
+
+.navLink:hover .navIcon {
+  transform: scale(1.18) rotate(-8deg);
+}
+
+.navLinkActive .navIcon {
+  transform: scale(1.05);
+}
+
+/* ---- Content column ---- */
+.column {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+}
+
+.header {
+  position: sticky;
+  top: 0;
+  z-index: 20;
   display: flex;
   align-items: center;
+  justify-content: space-between;
   gap: var(--space-3);
-  flex-shrink: 0;
+  padding: var(--space-3) var(--space-5);
+  background: color-mix(in srgb, var(--color-bg) 45%, transparent);
+  backdrop-filter: blur(16px);
+  -webkit-backdrop-filter: blur(16px);
 }
 
 .paletteButton {
   display: inline-flex;
   align-items: center;
   gap: var(--space-2);
+  height: 40px;
+  padding: 0 var(--space-4);
   border: 1px solid var(--color-border);
-  background: var(--color-surface-sunken);
-  border-radius: var(--radius-sm);
-  padding: var(--space-1) var(--space-2);
-  font-family: var(--font-ui);
-  font-size: 12px;
+  background: color-mix(in srgb, var(--color-surface) 60%, transparent);
+  border-radius: var(--radius-pill);
+  font-size: 14px;
   color: var(--color-text-muted);
   cursor: pointer;
-  transition: border-color 0.1s ease;
+  transition:
+    border-color 0.15s ease,
+    color 0.15s ease;
 }
 
 .paletteButton:hover {
@@ -129,14 +144,53 @@
   color: var(--color-text);
 }
 
-.userEmail {
-  font-family: var(--font-mono);
-  font-size: 12px;
-  color: var(--color-text-muted);
-  display: none;
+.headerActions {
+  display: flex;
+  align-items: center;
+  gap: var(--space-3);
 }
 
-@media (min-width: 860px) {
+.userButton {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-2);
+  height: 40px;
+  padding: 0 var(--space-3) 0 var(--space-1);
+  border: 1px solid var(--color-border);
+  background: var(--color-surface);
+  border-radius: var(--radius-pill);
+  color: var(--color-text-muted);
+  cursor: pointer;
+}
+
+.userButton:hover {
+  border-color: var(--color-border-strong);
+  color: var(--color-text);
+}
+
+.avatar {
+  display: inline-grid;
+  place-items: center;
+  width: 32px;
+  height: 32px;
+  border-radius: 50%;
+  background: var(--color-surface-elevated);
+  color: var(--color-text);
+  font-size: 13px;
+  font-weight: 800;
+}
+
+.userEmail {
+  display: none;
+  font-family: var(--font-mono);
+  font-size: 12px;
+  max-width: 200px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+@media (min-width: 1100px) {
   .userEmail {
     display: inline;
   }
@@ -144,42 +198,76 @@
 
 .main {
   flex: 1;
-  max-width: var(--shell-max-width);
   width: 100%;
+  max-width: var(--shell-max-width);
   margin: 0 auto;
-  padding: var(--space-6) var(--space-5) var(--space-8);
+  padding: var(--space-4) var(--space-5) var(--space-8);
 }
 
-@media (max-width: 1099px) {
-  /* Brand + search/logout on row 1, nav wraps to a full-width row 2 below it -
-     the M8.1 redesign's wider brand identity block (status dot + "TERMINAL"
-     badge) and segmented-well nav pill need a full 1093px single-row minimum
-     (verified live) - up from the pre-M8.1 860px threshold, which no longer
-     covers the wider header content. */
-  .headerInner {
-    height: auto;
-    flex-wrap: wrap;
-    padding: var(--space-2) var(--space-4);
-    gap: var(--space-2) var(--space-3);
+/* ---- Mobile / tablet: sidebar becomes a top strip ---- */
+@media (max-width: 899px) {
+  .shell {
+    flex-direction: column;
   }
-  .nav {
-    order: 3;
-    flex: 1 0 100%;
+
+  .sidebar {
+    position: static;
+    flex: none;
     width: 100%;
     height: auto;
-    flex-wrap: wrap;
+    flex-direction: row;
+    align-items: center;
+    gap: var(--space-3);
+    padding: var(--space-3) var(--space-4);
+    border-right: 0;
+    border-bottom: 1px solid var(--color-border);
+    overflow-x: auto;
   }
-  .navLink {
-    height: 28px;
-    padding: 0 var(--space-2);
-  }
-  .main {
-    padding: var(--space-5) var(--space-4) var(--space-7);
-  }
-}
 
-@media (prefers-reduced-motion: reduce) {
+  .brandRow {
+    flex: none;
+    padding: 0;
+  }
+
+  .brandFull {
+    display: none;
+  }
+
+  .brandCompact {
+    display: inline;
+  }
+
+  .nav {
+    flex-direction: row;
+    gap: var(--space-1);
+  }
+
+  /* Flatten the section groups into one icon row; titles are desktop-only. */
+  .section {
+    display: contents;
+  }
+
+  .sectionTitle {
+    display: none;
+  }
+
   .navLink {
-    transition: none;
+    width: 44px;
+    height: 44px;
+    padding: 0;
+    justify-content: center;
+    flex: none;
+  }
+
+  .navLabel {
+    display: none;
+  }
+
+  .header {
+    padding: var(--space-3) var(--space-4);
+  }
+
+  .main {
+    padding: var(--space-4) var(--space-4) var(--space-7);
   }
 }

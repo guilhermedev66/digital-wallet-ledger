@@ -1,50 +1,21 @@
 /*
- * Direction 1 — "The Ledger Terminal" (see DESIGN_DIRECTION.md).
- * Dark is the primary theme: it lives in the unconditional :root block below,
- * with light supplied as an override under `prefers-color-scheme: light`
- * (inverted from this file's previous light-default/dark-override order) so
- * a user with no OS preference signal still gets the terminal, not paper.
+ * SafePal direction (docs/design/refero/safepal-design.md) - replaces the old
+ * "Ledger Terminal". Variable NAMES are unchanged so the CSS Modules adapt on
+ * their own; only the values moved.
+ *
+ * Dark (Deep Indigo night) is the primary theme and the unconditional :root.
+ * Light is supplied under `prefers-color-scheme: light` when no explicit
+ * choice exists, and by `data-theme` (ThemeToggle / useTheme) which always wins.
+ *
+ * Depth comes from surface contrast, never shadows. Mint is the primary action
+ * in dark only; on white it would fail contrast, so light uses violet.
+ * Violet (#4a21ef) is reserved for large areas (the balance card gradient).
  */
 :root {
   color-scheme: light dark;
 
-  --font-ui: 'IBM Plex Sans', -apple-system, 'Segoe UI', Roboto, sans-serif;
+  --font-ui: 'DM Sans Variable', 'DM Sans', -apple-system, 'Segoe UI', Roboto, sans-serif;
   --font-mono: 'IBM Plex Mono', ui-monospace, 'SFMono-Regular', Consolas, monospace;
-
-  /* Surfaces — Void Black / Carbon Plate / Graphite Card, stepped instead of shadowed */
-  --color-bg: #08090a;
-  --color-surface: #111215;
-  --color-surface-elevated: #181a1f;
-  --color-surface-sunken: #060708;
-
-  /* Hairline structural borders */
-  --color-border: #242730;
-  --color-border-strong: #3d4454;
-
-  /* Text */
-  --color-text: #f0f2f5;
-  --color-text-muted: #8b909a;
-  --color-text-faint: #484d58;
-
-  /* Precision Ember — money-in-motion / primary actions only */
-  --color-accent: #ff5500;
-  --color-accent-strong: #ff7a33;
-  --color-accent-contrast: #08090a;
-
-  /* Balanced Emerald doubles as the credit-leg color (matches this file's
-     existing credit = "positive/clean" convention, e.g. ReconciliationPage's
-     clean banner) */
-  --color-credit: #00c853;
-  --color-credit-bg: #042617;
-  --color-debit: #f0f2f5;
-  --color-danger: #ff4d4f;
-  --color-danger-bg: #2d0a0b;
-  /* Ledger Amber — pending states, idempotency keys, reconciliation warnings */
-  --color-pending: #ffb020;
-  --color-pending-bg: #291c04;
-
-  --radius-sm: 1px;
-  --radius-md: 2px;
 
   --space-1: 4px;
   --space-2: 8px;
@@ -55,142 +26,183 @@
   --space-7: 48px;
   --space-8: 64px;
 
+  /* Shape: pills for buttons/tags, 24px cards, 12px for small controls */
+  --radius-sm: 12px;
+  --radius-md: 24px;
+  --radius-pill: 999px;
+
   --shell-max-width: 1440px;
   --focus-ring-color: var(--color-accent);
 
-  /* Typography scale (DESIGN_BRIEF_M8.1.md §3.9.2) - theme-independent, applied as
-     discrete properties (font shorthand can't reference custom properties cleanly):
-     font-size: var(--text-ROLE-size); font-weight: var(--text-ROLE-weight);
-     line-height: var(--text-ROLE-lh); letter-spacing: var(--text-ROLE-tracking);
-     font-family: var(--font-mono) or var(--font-ui) per the role. */
-  --text-display-size: 32px;
-  --text-display-weight: 600;
+  /* Brand constants (theme-independent) */
+  --color-violet: #4a21ef;
+  --color-mint: #79efbd;
+  --color-indigo-deep: #0d0b33;
+  --gradient-hero: linear-gradient(135deg, #0d0b33 0%, #2c1fa8 45%, #4a21ef 100%);
+  --on-hero: #ffffff;
+  --on-hero-muted: rgba(255, 255, 255, 0.78);
+
+  /* KPI strips: saturated bands with fixed ink (>= 9:1 in both themes) */
+  --strip-mint: #79efbd;
+  --strip-violet: #4a21ef;
+  --strip-teal: #5fd4d9;
+  --strip-amber: #ffc65c;
+  --strip-ink-dark: #0d0b33;
+  --strip-ink-light: #ffffff;
+
+  /* App-scale typography (the source is a marketing site: 80px display ignored) */
+  --text-display-size: 40px;
+  --text-display-weight: 800;
   --text-display-lh: 1.1;
   --text-display-tracking: -0.02em;
 
-  --text-h1-size: 20px;
-  --text-h1-weight: 700;
-  --text-h1-lh: 1.2;
+  --text-h1-size: 28px;
+  --text-h1-weight: 800;
+  --text-h1-lh: 1.15;
   --text-h1-tracking: -0.02em;
 
-  --text-h2-size: 16px;
-  --text-h2-weight: 600;
+  --text-h2-size: 18px;
+  --text-h2-weight: 700;
   --text-h2-lh: 1.3;
-  --text-h2-tracking: -0.015em;
+  --text-h2-tracking: -0.01em;
 
   --text-mono-lg-size: 16px;
   --text-mono-lg-weight: 500;
   --text-mono-lg-lh: 1.3;
   --text-mono-lg-tracking: 0em;
 
-  --text-body-size: 14px;
+  --text-body-size: 15px;
   --text-body-weight: 400;
-  --text-body-lh: 1.45;
-  --text-body-tracking: -0.01em;
+  --text-body-lh: 1.5;
+  --text-body-tracking: 0em;
 
   --text-label-size: 12px;
   --text-label-weight: 600;
   --text-label-lh: 1.3;
-  --text-label-tracking: 0.04em;
+  --text-label-tracking: 0.02em;
 
-  --text-mono-sm-size: 11px;
+  --text-mono-sm-size: 12px;
   --text-mono-sm-weight: 400;
   --text-mono-sm-lh: 1.4;
   --text-mono-sm-tracking: 0em;
 
-  --text-caption-size: 10px;
-  --text-caption-weight: 500;
+  --text-caption-size: 11px;
+  --text-caption-weight: 600;
   --text-caption-lh: 1.3;
   --text-caption-tracking: 0.02em;
+
+  /* ---- Dark palette (default) ---- */
+  --color-bg: #0d0b33;
+  --color-surface: #16134a;
+  --color-surface-elevated: #1f1c5e;
+  --color-surface-sunken: #090826;
+
+  --color-border: #2b2878;
+  --color-border-strong: #4a4696;
+
+  --color-text: #ffffff;
+  --color-text-muted: #c4c0ea;
+  --color-text-faint: #9a96cc;
+
+  /* Primary action: mint with indigo text (AA ~14:1) */
+  --color-accent: #79efbd;
+  --color-accent-strong: #a6f5d2;
+  --color-accent-contrast: #0d0b33;
+
+  --color-credit: #79efbd;
+  --color-credit-bg: #0f3d46;
+  --color-debit: #ffffff;
+  --color-danger: #ff7b8a;
+  --color-danger-bg: #44122f;
+  --color-pending: #ffc65c;
+  --color-pending-bg: #3d2c14;
+  --chart-violet: #9a86ff;
+  --color-teal: #5fd4d9;
 }
 
 @media (prefers-color-scheme: light) {
-  :root {
-    /* "Typeset Terminal on White Paper" — not an inversion, separately tuned */
-    --color-bg: #f8f9fa;
+  :root:not([data-theme]) {
+    --color-bg: #f7f6ff;
     --color-surface: #ffffff;
-    --color-surface-elevated: #f1f3f5;
-    --color-surface-sunken: #dee2e6;
+    --color-surface-elevated: #efecff;
+    --color-surface-sunken: #ece9fc;
 
-    --color-border: #d8dee4;
-    --color-border-strong: #adb5bd;
+    --color-border: #dcd8f3;
+    --color-border-strong: #a9a3d6;
 
-    --color-text: #16181d;
-    --color-text-muted: #495057;
-    --color-text-faint: #868e96;
+    --color-text: #1d1d1d;
+    --color-text-muted: #666666;
+    --color-text-faint: #626262;
 
-    --color-accent: #e04b00;
-    --color-accent-strong: #b93d00;
-    --color-accent-contrast: #16181d;
+    /* Violet primary with white text on light surfaces (AA ~8:1) */
+    --color-accent: #4a21ef;
+    --color-accent-strong: #3a16c4;
+    --color-accent-contrast: #ffffff;
 
-    --color-credit: #059669;
-    --color-credit-bg: #ecfdf5;
-    --color-debit: #16181d;
-    --color-danger: #dc2626;
-    --color-danger-bg: #fef2f2;
-    --color-pending: #d97706;
-    --color-pending-bg: #fef3c7;
+    --color-credit: #0a7a4f;
+    --color-credit-bg: #e1f7ec;
+    --color-debit: #1d1d1d;
+    --color-danger: #c81e3a;
+    --color-danger-bg: #fdeaee;
+    --color-pending: #8f5400;
+    --color-pending-bg: #fff2d4;
+    --chart-violet: #4a21ef;
+    --color-teal: #0e7c86;
   }
 }
 
-/*
- * Explicit theme choice (ThemeToggle / useTheme hook) sets `data-theme` on
- * <html>, overriding whatever `prefers-color-scheme` says. An attribute
- * selector on :root is higher-specificity than the bare `:root` used above
- * in both blocks, so these win unconditionally once the attribute is set -
- * no `:not()` gate needed. Values are deliberately duplicated (not
- * cross-referenced) rather than restructured around the attribute, so the
- * plain OS-preference path above keeps working untouched for anyone who
- * never opens the toggle.
- */
+/* Explicit choice wins over the OS preference (attribute > bare :root). */
 :root[data-theme='dark'] {
-  --color-bg: #08090a;
-  --color-surface: #111215;
-  --color-surface-elevated: #181a1f;
-  --color-surface-sunken: #060708;
+  --color-bg: #0d0b33;
+  --color-surface: #16134a;
+  --color-surface-elevated: #1f1c5e;
+  --color-surface-sunken: #090826;
 
-  --color-border: #242730;
-  --color-border-strong: #3d4454;
+  --color-border: #2b2878;
+  --color-border-strong: #4a4696;
 
-  --color-text: #f0f2f5;
-  --color-text-muted: #8b909a;
-  --color-text-faint: #484d58;
+  --color-text: #ffffff;
+  --color-text-muted: #c4c0ea;
+  --color-text-faint: #9a96cc;
 
-  --color-accent: #ff5500;
-  --color-accent-strong: #ff7a33;
-  --color-accent-contrast: #08090a;
+  --color-accent: #79efbd;
+  --color-accent-strong: #a6f5d2;
+  --color-accent-contrast: #0d0b33;
 
-  --color-credit: #00c853;
-  --color-credit-bg: #042617;
-  --color-debit: #f0f2f5;
-  --color-danger: #ff4d4f;
-  --color-danger-bg: #2d0a0b;
-  --color-pending: #ffb020;
-  --color-pending-bg: #291c04;
+  --color-credit: #79efbd;
+  --color-credit-bg: #0f3d46;
+  --color-debit: #ffffff;
+  --color-danger: #ff7b8a;
+  --color-danger-bg: #44122f;
+  --color-pending: #ffc65c;
+  --color-pending-bg: #3d2c14;
+  --chart-violet: #9a86ff;
+  --color-teal: #5fd4d9;
 }
 
 :root[data-theme='light'] {
-  --color-bg: #f8f9fa;
+  --color-bg: #f7f6ff;
   --color-surface: #ffffff;
-  --color-surface-elevated: #f1f3f5;
-  --color-surface-sunken: #dee2e6;
+  --color-surface-elevated: #efecff;
+  --color-surface-sunken: #ece9fc;
 
-  --color-border: #d8dee4;
-  --color-border-strong: #adb5bd;
+  --color-border: #dcd8f3;
+  --color-border-strong: #a9a3d6;
 
-  --color-text: #16181d;
-  --color-text-muted: #495057;
-  --color-text-faint: #868e96;
+  --color-text: #1d1d1d;
+  --color-text-muted: #666666;
+  --color-text-faint: #626262;
 
-  --color-accent: #e04b00;
-  --color-accent-strong: #b93d00;
-  --color-accent-contrast: #16181d;
+  --color-accent: #4a21ef;
+  --color-accent-strong: #3a16c4;
+  --color-accent-contrast: #ffffff;
 
-  --color-credit: #059669;
-  --color-credit-bg: #ecfdf5;
-  --color-debit: #16181d;
-  --color-danger: #dc2626;
-  --color-danger-bg: #fef2f2;
-  --color-pending: #d97706;
-  --color-pending-bg: #fef3c7;
+  --color-credit: #0a7a4f;
+  --color-credit-bg: #e1f7ec;
+  --color-debit: #1d1d1d;
+  --color-danger: #c81e3a;
+  --color-danger-bg: #fdeaee;
+  --color-pending: #8f5400;
+  --color-pending-bg: #fff2d4;  --chart-violet: #4a21ef;
+  --color-teal: #0e7c86;
 }

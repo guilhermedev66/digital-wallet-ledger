@@ -47,7 +47,10 @@ export class HttpApiClient implements ApiClient {
       // authenticated - drop it so the app bounces to /login instead of
       // showing a raw "Request failed with status 401" while still looking
       // logged in.
-      if (response.status === 401 && hadToken) this.onUnauthorized?.()
+      // Exception: a 401 from the login endpoint itself means "wrong credentials", never a
+      // stale session - the lock screen re-verifies the password through it while signed in,
+      // and a typo there must not sign the user out.
+      if (response.status === 401 && hadToken && path !== '/api/auth/login') this.onUnauthorized?.()
       throw new ApiError(
         body?.message ?? `Request failed with status ${response.status}`,
         response.status,

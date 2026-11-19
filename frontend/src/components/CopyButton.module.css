@@ -9,7 +9,7 @@
   justify-content: center;
   border: 1px solid transparent;
   background: transparent;
-  border-radius: var(--radius-sm);
+  border-radius: var(--radius-pill);
   color: var(--color-text-faint);
   cursor: pointer;
   transition:

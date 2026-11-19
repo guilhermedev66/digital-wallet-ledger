@@ -13,7 +13,7 @@
   color: var(--color-accent-contrast);
   background: var(--color-accent);
   border: 1px solid var(--color-accent);
-  border-radius: var(--radius-sm);
+  border-radius: var(--radius-pill);
   cursor: pointer;
   overflow: hidden;
   transition:
@@ -45,7 +45,7 @@
 .border {
   position: absolute;
   inset: 0;
-  border-radius: var(--radius-sm);
+  border-radius: var(--radius-pill);
   background-image: repeating-linear-gradient(
     90deg,
     var(--color-accent-contrast) 0,

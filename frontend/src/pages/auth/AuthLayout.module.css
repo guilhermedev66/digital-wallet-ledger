@@ -1,18 +1,18 @@
 .page {
   min-height: 100svh;
+  display: grid;
+  grid-template-columns: 1fr;
+}
+
+.formSide {
   display: flex;
   align-items: center;
   justify-content: center;
   padding: var(--space-5);
-  background: var(--color-bg);
 }
 
 .panel {
-  width: min(380px, 100%);
-  border: 1px solid var(--color-border-strong);
-  border-radius: var(--radius-md);
-  background: var(--color-surface);
-  padding: var(--space-6);
+  width: min(400px, 100%);
   display: flex;
   flex-direction: column;
   gap: var(--space-5);
@@ -21,17 +21,18 @@
 .brand {
   display: flex;
   flex-direction: column;
-  gap: var(--space-1);
-}
-
-.brandName {
-  font-size: 16px;
-  font-weight: 700;
+  gap: var(--space-2);
 }
 
 .tagline {
-  font-size: 12px;
-  color: var(--color-text-faint);
+  font-size: 13px;
+  color: var(--color-text-muted);
+}
+
+.title {
+  font-size: var(--text-h1-size);
+  font-weight: var(--text-h1-weight);
+  letter-spacing: var(--text-h1-tracking);
 }
 
 .form {
@@ -41,7 +42,27 @@
 }
 
 .footer {
-  font-size: 13px;
+  font-size: 14px;
   color: var(--color-text-muted);
-  text-align: center;
+}
+
+.footer a {
+  font-weight: 700;
+}
+
+/* Violet is allowed on large areas: the device stage uses the hero gradient. */
+.deviceSide {
+  position: relative;
+  margin: var(--space-4);
+  border-radius: var(--radius-md);
+  background:
+    radial-gradient(120% 90% at 80% 0%, rgba(121, 239, 189, 0.18), transparent 50%),
+    var(--gradient-hero);
+  overflow: hidden;
+}
+
+@media (min-width: 900px) {
+  .page {
+    grid-template-columns: minmax(380px, 0.9fr) minmax(0, 1.3fr);
+  }
 }

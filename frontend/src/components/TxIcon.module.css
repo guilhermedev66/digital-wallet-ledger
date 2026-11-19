@@ -1,0 +1,21 @@
+.icon {
+  display: inline-grid;
+  place-items: center;
+  flex: none;
+  width: 40px;
+  height: 40px;
+  border-radius: 50%;
+  background: var(--color-surface-elevated);
+  color: var(--color-text);
+}
+
+.deposit,
+.receive {
+  background: var(--color-credit-bg);
+  color: var(--color-credit);
+}
+
+.reversal {
+  background: var(--color-pending-bg);
+  color: var(--color-pending);
+}

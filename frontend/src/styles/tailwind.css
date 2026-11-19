@@ -1,0 +1,74 @@
+/*
+ * Tailwind v4 + shadcn/ui, coexisting with the CSS Modules screens.
+ *
+ * - NO preflight: only the theme and utilities layers are imported, so there
+ *   is no global reset and existing screens render exactly as before.
+ * - NO global element rules (no `* { border-color }`, no `body { @apply }`):
+ *   shadcn components set their own border colors explicitly.
+ * - shadcn tokens below are aliases of tokens.css - no new colors live here.
+ *   They resolve per-element, so the data-theme / prefers-color-scheme
+ *   switching in tokens.css drives them automatically.
+ */
+@layer theme, base, components, utilities;
+@import 'tailwindcss/theme.css' layer(theme);
+@import 'tailwindcss/utilities.css' layer(utilities);
+@import 'tw-animate-css';
+@import 'shadcn/tailwind.css';
+
+/* tokens.css sets the theme via data-theme on <html> (default is dark). */
+@custom-variant dark (&:where([data-theme='dark'], [data-theme='dark'] *));
+
+@theme inline {
+  --font-sans: var(--font-ui);
+  --font-heading: var(--font-ui);
+
+  --color-background: var(--background);
+  --color-foreground: var(--foreground);
+  --color-card: var(--card);
+  --color-card-foreground: var(--card-foreground);
+  --color-popover: var(--popover);
+  --color-popover-foreground: var(--popover-foreground);
+  --color-primary: var(--primary);
+  --color-primary-foreground: var(--primary-foreground);
+  --color-secondary: var(--secondary);
+  --color-secondary-foreground: var(--secondary-foreground);
+  --color-muted: var(--muted);
+  --color-muted-foreground: var(--muted-foreground);
+  --color-accent: var(--accent);
+  --color-accent-foreground: var(--accent-foreground);
+  --color-destructive: var(--destructive);
+  --color-border: var(--border);
+  --color-input: var(--input);
+  --color-ring: var(--ring);
+
+  --radius-sm: calc(var(--radius) * 0.6);
+  --radius-md: calc(var(--radius) * 0.8);
+  --radius-lg: var(--radius);
+  --radius-xl: 24px;
+  --radius-2xl: 24px;
+  --radius-3xl: 24px;
+  --radius-4xl: 999px;
+}
+
+:root {
+  --background: var(--color-bg);
+  --foreground: var(--color-text);
+  --card: var(--color-surface);
+  --card-foreground: var(--color-text);
+  --popover: var(--color-surface-elevated);
+  --popover-foreground: var(--color-text);
+  --primary: var(--color-accent);
+  --primary-foreground: var(--color-accent-contrast);
+  --secondary: var(--color-surface-elevated);
+  --secondary-foreground: var(--color-text);
+  --muted: var(--color-surface-elevated);
+  --muted-foreground: var(--color-text-muted);
+  --accent: var(--color-surface-elevated);
+  --accent-foreground: var(--color-text);
+  --destructive: var(--color-danger);
+  --border: var(--color-border);
+  --input: var(--color-border-strong);
+  --ring: var(--focus-ring-color);
+  /* SafePal shape: 24px cards (--radius-xl/2xl), pills via rounded-full/4xl. */
+  --radius: 16px;
+}

@@ -1,0 +1,21 @@
+.amount {
+  font-variant-numeric: tabular-nums;
+  font-feature-settings: 'tnum' 1;
+}
+
+.cents {
+  opacity: 0.55;
+}
+
+.amount {
+  position: relative;
+  display: inline-block;
+}
+
+/* Mint copy of the figure laid over the original; only its opacity animates. */
+.flash {
+  position: absolute;
+  inset: 0;
+  color: var(--color-credit);
+  pointer-events: none;
+}
